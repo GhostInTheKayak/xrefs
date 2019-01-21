@@ -1,2 +1,2 @@
 # xrefs
-File cross references
+File cross references scanner and reporter.
