@@ -1,22 +1,22 @@
 #
 #   Scan all text files for cross references to other text files
 #
-#   Libraries
-#   switches
-#   constants
-#   global hashes
+### Libraries
+### switches
+### constants
+### global hashes
 #
-#   SUB found_something
-#   SUB scan_file
-#   SUB output_help
-#   SUB
+### SUB found_something
+### SUB scan_file
+### SUB output_help
+### SUB start_section
 #
-#   Begin
-#   PASS 1 -- build a hash of all of the directories and files in the tree
-#   PASS 2 -- examine each file for references
-#   PASS 3 -- Report totals and misc lists
-#   Wind up
-#   End
+### Begin
+### PASS 1 -- build a hash of all of the directories and files in the tree
+### PASS 2 -- examine each file for references
+### PASS 3 -- Report totals and misc lists
+### Wind up
+### End
 #
 
 ### Libraries
@@ -384,7 +384,7 @@ sub start_section
 
 ### Begin
 
-print "\nCross reference scan -- 03 November 2013 -- Ian Higgs\n";
+print "\nCross reference scan -- 08 January 2014 -- Ian Higgs\n";
 
 $starting_dir = shift;
 
