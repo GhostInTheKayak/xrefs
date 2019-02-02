@@ -2,7 +2,7 @@
 #   Scan all text files for cross references to other text files
 #
 
-print "\nCross reference scan -- 06 April 2012 -- Ian Higgs\n";
+print "\nCross reference scan -- 11 September 2012 -- Ian Higgs\n";
 
 ####    control constants
 
@@ -143,10 +143,10 @@ sub scan_file {
 
         #   check each line for a possible file name
 
-        if ( /^I:\\/i ) {
+        if ( /^$starting_dir/i ) {
             $target = lc $_;
 
-            #   The line starts I:\ and is probably a file name
+            #   The line starts with the $starting directory and so is probably a file name
             #   TODO    check if the file ref is badly formed BUT does in fact match a target file
             #   check if the cross reference is to a file with spaces in the name
 
