@@ -84,6 +84,8 @@ $tag_todo               = '\[\[\[todo\]\]\]';
 $tag_end                = $tag_section . ' END';
 
 $prefix_xref            = $space x 4;
+$suffix_start           = ' --';
+$suffix_end             = '-- ';
 
 $prefix_all_files       = 'GOT  ';
 $prefix_dir_found       = '';
@@ -93,22 +95,22 @@ $prefix_file_scanned    = 'SCAN ';
 $prefix_source_file     = '';
 
 $prefix_space_xref      = $prefix_xref;
-$suffix_space_xref      = ' >>SP>> ';
+$suffix_space_xref      = $suffix_start . 'SP' . $suffix_end;
 
 $prefix_not_txt_xref    = $prefix_xref;
-$suffix_not_txt_xref    = ' >>TXT>> ';
+$suffix_not_txt_xref    = $suffix_start . 'text?' . $suffix_end;
 
 $prefix_good_xref       = $prefix_xref;
-$suffix_good_xref       = ' >> ';
+$suffix_good_xref       = $suffix_start . 'XREF' . $suffix_end;
 
 $prefix_todo_tag        = $prefix_xref;
-$suffix_todo_tag        = ' >>TODO>> ';
+$suffix_todo_tag        = $suffix_start . 'TODO' . $suffix_end;
 
 $prefix_todo_section    = $prefix_xref;
-$suffix_todo_section    = ' >>todo>> ';
+$suffix_todo_section    = $suffix_start . 'todo' . $suffix_end;
 
 $prefix_bad_underlining = $prefix_xref;
-$suffix_bad_underlining = ' >>UL>> ';
+$suffix_bad_underlining = $suffix_start . 'UL' . $suffix_end;
 
 $file_source_sep        = $crlf;
 $file_source_expanded   = $crlf . $prefix_xref;
@@ -347,7 +349,6 @@ sub scan_file {
 
                     if ($pass4_list_bad_underlines) {
                         report_filename($this_file) if ($output_filename);
-               #???     print "$prefix_source_file$this_file\n" if ($output_filename);
                         $output_filename = 0;
                         print "$prefix_bad_underlining\n";
                         report_line($prefix_bad_underlining, filename_and_line($source, $line_number), $suffix_bad_underlining, '');
@@ -382,10 +383,8 @@ sub scan_file {
                 $targets_with_space_count++;
                 if ($pass4_list_xrefs) {
                     report_filename($source) if ($output_filename);
-   #???             print "$prefix_source_file$source\n" if ($output_filename);
                     $output_filename = 0;
                     report_line($prefix_space_xref, filename_and_line($source, $line_number), $suffix_space_xref, $current_line);
-   #???             print "$prefix_space_xref$target\n";
                 }
 
                 next;   #   26 January 2012
@@ -399,10 +398,8 @@ sub scan_file {
                 $targets_not_txt_count++;
                 if ($pass4_list_xrefs) {
                     report_filename($source) if ($output_filename);
-  #???              print "$prefix_source_file$source\n" if ($output_filename);
                     $output_filename = 0;
                     report_line($prefix_not_txt_xref, filename_and_line($source, $line_number), $suffix_not_txt_xref, $target);
-  #???              print "$prefix_not_txt_xref$target\n";
                 }
 
                 next;   #   26 January 2012
@@ -413,9 +410,7 @@ sub scan_file {
 
             if ($pass4_list_xrefs) {
                 report_filename($source) if ($output_filename);
-  #???          print "$prefix_source_file$source\n" if ($output_filename);
                 $output_filename = 0;
-  #???          print "$prefix_good_xref$target\n";
                 report_line($prefix_good_xref, '', '', $target) unless ($pass4_list_xrefs_source);
                 report_line($prefix_good_xref, filename_and_line($source, $line_number), $suffix_good_xref, $target) if ($pass4_list_xrefs_source);
             }
@@ -430,10 +425,8 @@ sub scan_file {
 
             if ($pass4_list_todo_tags) {
                 report_filename($source) if ($output_filename);
- #???           print "$prefix_source_file$source\n" if ($output_filename);
                 $output_filename = 0;
                 report_line($prefix_todo_tag, filename_and_line($source, $line_number), $suffix_todo_tag, $current_line);
-  #???          print $prefix_todo_tag, $source, '(', $line_number, ')', $suffix_todo_tag, $current_line, "\n";
             }
         }
 
@@ -446,10 +439,8 @@ sub scan_file {
 
             if ($pass4_list_todo_sections) {
                 report_filename($source) if ($output_filename);
-   #???         print "$prefix_source_file$source\n" if ($output_filename);
                 $output_filename = 0;
                 report_line($prefix_todo_section, filename_and_line($source, $line_number), $suffix_todo_section, $current_line);
-  #???          print "$prefix_todo_section$target\n";
             }
         }
 
