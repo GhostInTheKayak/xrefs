@@ -94,6 +94,9 @@ $todo_section_prefix    = " ?TS ";
 
 $bad_underlining_prefix = " ?UL ";
 
+$file_source_sep        = "\n";
+$file_source_expanded   = "\n    ";
+
 ### global hashes
 
 my  %all_files_hash;
@@ -269,7 +272,7 @@ sub found_something {
                 $duplicate_txt_filenames_hash{$just_filename}++;
             }
         }
-        $all_filenames_hash{$just_filename} .= "\n    " . $path_and_filename;
+        $all_filenames_hash{$just_filename} .= $file_source_sep . $path_and_filename;
     }
 }
 
@@ -520,7 +523,9 @@ if ($pass3_list_duplicate_filenames && $duplicate_filenames_count) {
     foreach $filename (sort keys %duplicate_filenames_hash) {
         print "$filename -- ";
         print $duplicate_filenames_hash{$filename} +1;
-        print $all_filenames_hash{$filename};
+        $s = $all_filenames_hash{$filename};
+        $s =~ s/$file_source_sep/$file_source_expanded/g;
+        print $s;
         print "\n";
     }
 }
@@ -534,7 +539,9 @@ if ($pass3_list_duplicate_txt_filenames && $duplicate_txt_filenames_count) {
     foreach $filename (sort keys %duplicate_txt_filenames_hash) {
         print $filename;
         # print " -- " . ($duplicate_txt_filenames_hash{$filename} +1);
-        print $all_filenames_hash{$filename};
+        $s = $all_filenames_hash{$filename};
+        $s =~ s/$file_source_sep/$file_source_expanded/g;
+        print $s;
         print "\n";
     }
 }
