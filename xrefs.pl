@@ -6,7 +6,7 @@ print "\nCross reference scan -- 11 September 2012 -- Ian Higgs\n";
 
 ####    control constants
 
-$starting_dir                   = "I:\\";
+$starting_dir                   = 'I:\';
 
 ####    PASS1 switches
 
