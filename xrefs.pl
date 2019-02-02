@@ -57,6 +57,7 @@ $pass4_list_file_names          = 0;
 $pass4_list_files_overwrite     = 0;
 $pass4_list_bad_underlines      = 1;
 $pass4_list_xrefs               = 1;
+$pass4_list_xrefs_source        = 0;
 $pass4_list_todo_tags           = 1;
 $pass4_list_todo_sections       = 1;
 
@@ -73,28 +74,44 @@ $pass5_list_todo_sections       = 1;
 
 ### constants
 
-$blanks                 = " " x 40;
-$section_tag            = "=" x 3;
-$todo_section_tag       = "$section_tag todo";
-$todo_tag               = '\[\[\[todo\]\]\]';
-$end_tag                = "$section_tag END";
+$crlf                   = "\n";
+$space                  = ' ';
+$blanks                 = $space x 40;
 
-$all_files_prefix       = "GOT  ";
-$dir_found_prefix       = "";
-$file_found_prefix      = "    ";
-$file_scanned_prefix    = "SCAN ";
+$tag_section            = '=' x 3;
+$tag_todo_section       = $tag_section . ' todo';
+$tag_todo               = '\[\[\[todo\]\]\]';
+$tag_end                = $tag_section . ' END';
 
-$source_file_prefix     = "";
-$space_xref_prefix      = " ?SP ";
-$not_txt_xref_prefix    = " ?NT ";
-$good_xref_prefix       = "     ";
-$todo_tag_prefix        = " ?TT ";
-$todo_section_prefix    = " ?TS ";
+$prefix_xref            = $space x 4;
 
-$bad_underlining_prefix = " ?UL ";
+$prefix_all_files       = 'GOT  ';
+$prefix_dir_found       = '';
+$prefix_file_found      = $prefix_xref;
+$prefix_file_scanned    = 'SCAN ';
 
-$file_source_sep        = "\n";
-$file_source_expanded   = "\n    ";
+$prefix_source_file     = '';
+
+$prefix_space_xref      = $prefix_xref;
+$suffix_space_xref      = ' >>SP>> ';
+
+$prefix_not_txt_xref    = $prefix_xref;
+$suffix_not_txt_xref    = ' >>TXT>> ';
+
+$prefix_good_xref       = $prefix_xref;
+$suffix_good_xref       = ' >> ';
+
+$prefix_todo_tag        = $prefix_xref;
+$suffix_todo_tag        = ' >>TODO>> ';
+
+$prefix_todo_section    = $prefix_xref;
+$suffix_todo_section    = ' >>todo>> ';
+
+$prefix_bad_underlining = $prefix_xref;
+$suffix_bad_underlining = ' >>UL>> ';
+
+$file_source_sep        = $crlf;
+$file_source_expanded   = $crlf . $prefix_xref;
 
 ### global hashes
 
@@ -201,7 +218,7 @@ my  $targets_with_space_count = 0;
 #   printed in pass 5 if $pass5_list_targets_with_space
 
 my  %files_with_todo_tag_hash;
-my  $todo_tag_count = 0;
+my  $tag_todo_count = 0;
 #
 #   holds   all the files that include a TODO tag
 #   key     full path and file name
@@ -236,13 +253,13 @@ sub found_something {
     $just_dirname =~ s/\//\\/g;
     $path_and_filename = lc (File::Spec->canonpath($File::Find::name));
 
-    print "$all_files_prefix$path_and_filename\n" if ($pass1_list_all_files);
+    print $prefix_all_files, $path_and_filename, $crlf if ($pass1_list_all_files);
 
     print "DIR=".$just_dirname ." FILE=".$just_filename ."\n" if ($debug_found_something_output);
 
     if (-d $path_and_filename) {
-        print "$dir_found_prefix$path_and_filename\n" if ($pass1_list_all_files || $pass1_list_dir_names);
-        print "$dir_found_prefix$path_and_filename$blanks\r" if ($pass1_list_dirs_overwrite);
+        print "$prefix_dir_found$path_and_filename\n" if ($pass1_list_all_files || $pass1_list_dir_names);
+        print "$prefix_dir_found$path_and_filename$blanks\r" if ($pass1_list_dirs_overwrite);
         $all_files_hash{$path_and_filename}++;
         $all_directories_hash{$path_and_filename}++;
         $all_directories_count++;
@@ -253,8 +270,8 @@ sub found_something {
             $dirnames_with_space_count++;
         }
     } else {
-        print "$file_found_prefix$path_and_filename\n" if ($pass1_list_all_files || $pass1_list_file_names);
-        print "$file_found_prefix$path_and_filename$blanks\r" if ($pass1_list_files_overwrite);
+        print "$prefix_file_found$path_and_filename\n" if ($pass1_list_all_files || $pass1_list_file_names);
+        print "$prefix_file_found$path_and_filename$blanks\r" if ($pass1_list_files_overwrite);
         $all_files_hash{$path_and_filename}++;
         $all_files_count++;
 
@@ -298,8 +315,8 @@ sub scan_file {
     my $output_filename = 1;
     my $left_length = length($external_dir);
 
-    print "$file_scanned_prefix$this_file\n" if ($pass4_list_file_names);
-    print "$file_scanned_prefix$this_file$blanks\r" if ($pass4_list_files_overwrite);
+    print "$prefix_file_scanned$this_file\n" if ($pass4_list_file_names);
+    print "$prefix_file_scanned$this_file$blanks\r" if ($pass4_list_files_overwrite);
 
     open(FILE,"<$this_file");
 
@@ -329,9 +346,12 @@ sub scan_file {
                     $files_with_bad_underlines_count++;
 
                     if ($pass4_list_bad_underlines) {
-                        print "$source_file_prefix$this_file\n" if ($output_filename);
+                        report_filename($this_file) if ($output_filename);
+               #???     print "$prefix_source_file$this_file\n" if ($output_filename);
                         $output_filename = 0;
-                        print "$bad_underlining_prefix\n";
+                        print "$prefix_bad_underlining\n";
+                        report_line($prefix_bad_underlining, filename_and_line($source, $line_number), $suffix_bad_underlining, '');
+
                     }
                 }
             }
@@ -344,6 +364,7 @@ sub scan_file {
 
         #   check each line for a possible file name
 
+        $current_line = $_;
         $target = lc $_;
         my $left_part = substr( $target, 0, $left_length);
 
@@ -360,9 +381,11 @@ sub scan_file {
                 $targets_with_space_hash{$target}++;
                 $targets_with_space_count++;
                 if ($pass4_list_xrefs) {
-                    print "$source_file_prefix$source\n" if ($output_filename);
+                    report_filename($source) if ($output_filename);
+   #???             print "$prefix_source_file$source\n" if ($output_filename);
                     $output_filename = 0;
-                    print "$space_xref_prefix$target\n";
+                    report_line($prefix_space_xref, filename_and_line($source, $line_number), $suffix_space_xref, $current_line);
+   #???             print "$prefix_space_xref$target\n";
                 }
 
                 next;   #   26 January 2012
@@ -375,9 +398,11 @@ sub scan_file {
                 $targets_not_txt_hash{$target}++;
                 $targets_not_txt_count++;
                 if ($pass4_list_xrefs) {
-                    print "$source_file_prefix$source\n" if ($output_filename);
+                    report_filename($source) if ($output_filename);
+  #???              print "$prefix_source_file$source\n" if ($output_filename);
                     $output_filename = 0;
-                    print "$not_txt_xref_prefix$target\n";
+                    report_line($prefix_not_txt_xref, filename_and_line($source, $line_number), $suffix_not_txt_xref, $target);
+  #???              print "$prefix_not_txt_xref$target\n";
                 }
 
                 next;   #   26 January 2012
@@ -387,37 +412,44 @@ sub scan_file {
             $valid_xref_count++;
 
             if ($pass4_list_xrefs) {
-                print "$source_file_prefix$source\n" if ($output_filename);
+                report_filename($source) if ($output_filename);
+  #???          print "$prefix_source_file$source\n" if ($output_filename);
                 $output_filename = 0;
-                print "$good_xref_prefix$target\n";
+  #???          print "$prefix_good_xref$target\n";
+                report_line($prefix_good_xref, '', '', $target) unless ($pass4_list_xrefs_source);
+                report_line($prefix_good_xref, filename_and_line($source, $line_number), $suffix_good_xref, $target) if ($pass4_list_xrefs_source);
             }
         }
 
         #   check each line for a possible TODO tag
 
-        if ( $target =~ /$todo_tag/ ) {
+        if ( $target =~ /$tag_todo/ ) {
 
             $files_with_todo_tag_hash{$this_file}++;
-            $todo_tag_count++;
+            $tag_todo_count++;
 
             if ($pass4_list_todo_tags) {
-                print "$source_file_prefix$source\n" if ($output_filename);
+                report_filename($source) if ($output_filename);
+ #???           print "$prefix_source_file$source\n" if ($output_filename);
                 $output_filename = 0;
-                print "$todo_tag_prefix$target\n";
+                report_line($prefix_todo_tag, filename_and_line($source, $line_number), $suffix_todo_tag, $current_line);
+  #???          print $prefix_todo_tag, $source, '(', $line_number, ')', $suffix_todo_tag, $current_line, "\n";
             }
         }
 
         #   check each line for a TODO section
 
-        if ( $target =~ /^$todo_section_tag/ ) {
+        if ( $target =~ /^$tag_todo_section/ ) {
 
             $files_with_todo_section_hash{$this_file}++;
             $todo_section_count++;
 
             if ($pass4_list_todo_sections) {
-                print "$source_file_prefix$source\n" if ($output_filename);
+                report_filename($source) if ($output_filename);
+   #???         print "$prefix_source_file$source\n" if ($output_filename);
                 $output_filename = 0;
-                print "$todo_section_prefix$target\n";
+                report_line($prefix_todo_section, filename_and_line($source, $line_number), $suffix_todo_section, $current_line);
+  #???          print "$prefix_todo_section$target\n";
             }
         }
 
@@ -427,7 +459,7 @@ sub scan_file {
 #   at EOF - do we have a well-formed Notefile?
 #   print "$last_line\n";
 
-    if ($last_line eq $end_tag) {
+    if ($last_line eq $tag_end) {
         if ($title_matches) {
             #   clean notefile
             #   TODO    record notefile name
@@ -462,7 +494,46 @@ ENDhelptext
 sub start_section
 {
     my $title = shift;
-    print "\n$section_tag $title\n\n";
+    print $crlf, $tag_section, ' ', $title, $crlf, $crlf;
+}
+
+### SUB report_line
+#
+#   Report a finding of some some
+#
+#   p1  prefix      string to start the line
+#   p2  filename
+#   p3  suffix      string to follow the filename
+#   p4  rest        anything else to print at the end of the line
+#
+
+sub report_line
+{
+    my $prefix = shift;
+    my $filename = shift;
+    my $suffix = shift;
+    my $rest = shift;
+    print $prefix, $filename, $suffix, $rest, $crlf;
+}
+
+### SUB report_filename
+#
+#   Report the filename
+#
+#   p1  filename
+#
+
+sub report_filename
+{
+    my $filename = shift;
+    print $prefix_source_file, $filename, $crlf;
+}
+
+sub filename_and_line
+{
+    my $filename = shift;
+    my $linenumber = shift;
+    return $filename . '(' . $linenumber . ')';
 }
 
 ### Begin
@@ -495,7 +566,7 @@ if ($dirnames_with_space_count && $pass2_list_dirs_with_space) {
     start_section("$dirnames_with_space_count Directory names with a space");
 
     foreach $dir (sort keys %dirnames_with_space_hash) {
-        print "$dir\n";
+        print $dir, $crlf;
     }
 }
 
@@ -509,7 +580,7 @@ if ($filenames_with_space_count && $pass3_list_files_with_space) {
     start_section("$filenames_with_space_count filenames with a space");
 
     foreach $filename (sort keys %filenames_with_space_hash) {
-        print "$filename\n";
+        print $filename, $crlf;
     }
 }
 
@@ -533,7 +604,7 @@ if ($pass3_list_duplicate_filenames && $duplicate_filenames_count) {
 
 $duplicate_txt_filenames_count = scalar keys %duplicate_txt_filenames_hash;
 if ($pass3_list_duplicate_txt_filenames && $duplicate_txt_filenames_count) {
-    start_section("$duplicate_txt_filenames_count duplicate .txt filenames");
+    start_section($duplicate_txt_filenames_count . ' duplicate .txt filenames');
 
     foreach $filename (sort keys %duplicate_txt_filenames_hash) {
         print $filename;
@@ -612,9 +683,9 @@ if ($todo_section_count && $pass5_list_todo_sections) {
     }
 }
 
-if ($todo_tag_count && $pass5_list_todo_tags) {
+if ($tag_todo_count && $pass5_list_todo_tags) {
     $files_with_todo_tag_count = scalar keys %files_with_todo_tag_hash;
-    start_section("$todo_tag_count [[[TODO]]] tags in $files_with_todo_tag_count files");
+    start_section("$tag_todo_count [[[TODO]]] tags in $files_with_todo_tag_count files");
 
     foreach $target (sort keys %files_with_todo_tag_hash) {
         print "$target\n";
@@ -658,7 +729,7 @@ print "PASS 5 -- Summary\n";
 print "    $targets_not_txt_count targets that are not text files\n";
 print "    $targets_with_space_count target lines include spaces\n";
 print "    $todo_section_count TODO sections in $files_with_todo_section_count files\n";
-print "    $todo_tag_count [[[TODO]]] tags in $files_with_todo_tag_count files\n";
+print "    $tag_todo_count [[[TODO]]] tags in $files_with_todo_tag_count files\n";
 print "    $missing_targets_count references to $missing_target_files_count missing files\n";
 print "    $files_with_bad_underlines_count files with an incorrectly underlined title\n";
 
