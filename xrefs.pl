@@ -2,6 +2,8 @@
 #   Scan all text files for cross references to other text files
 #
 
+print "\nCross reference scan -- 26 January 2012 -- Ian Higgs\n";
+
 ####    control constants
 
 $starting_dir               = "I:\\";
@@ -10,19 +12,20 @@ $starting_dir               = "I:\\";
 
 $list_all_files             = 0;
 $list_dirs                  = 0;
-$list_dirs_overwrite        = 1;
+$list_dirs_overwrite        = 0;
 $list_files                 = 0;
 $list_files_overwrite       = 0;
 
 ####    switches for second pass
 
 $list_dirs_with_space       = 1;
-$list_xrefs                 = 1;
+$list_xrefs                 = 0;
 $list_all_targets           = 1;
-$list_valid                 = 1;
+$list_valid                 = 0;
 $list_broken                = 1;
 $list_targets_with_space    = 1;
 $list_targets_not_txt       = 1;
+$list_bad_underlines        = 1;
 
 ####    constants
 
@@ -32,7 +35,7 @@ $all_files_prefix           = "GOT  ";
 $dir_found_prefix           = "DIR  ";
 $file_found_prefix          = "FILE ";
 
-$source_file_prefix         = "FILE ";
+$source_file_prefix         = "";
 $space_xref_prefix          = "  >> ";
 $not_txt_xref_prefix        = "  >> ";
 $xref_prefix                = "  >> ";
@@ -90,11 +93,14 @@ sub scan_file {
     my $last_line = "";
     my $line_number = 0;
     my $title_matches = 0;
+    my $this_file = shift;
+    my $output_filename = 1;
 
-    open(FILE,"<$source");
+    open(FILE,"<$this_file");
 
     while( <FILE> ) {
 
+        chomp;
         $line_number++;
 #       print "$line_number -- $_\n";
 
@@ -114,62 +120,80 @@ sub scan_file {
                     $title_matches++;
                 } else {
                     # title is underlined, but the underlines do not match
-                    print "$source_file_prefix$source\n" if ($source && $list_xrefs);
-                    $source = "";
-                    $source_with_bad_underlines{$source}++;
-                    print "$title\n$_  DOES NOT MATCH LENGTH\n";
+                    $file_with_bad_underlines{$this_file}++;
+
+                    if ($list_bad_underlines) {
+                        print "$source_file_prefix$this_file\n" if ($output_filename);
+                        $output_filename = 0;
+                        print "$title\n$_  incorrect title underline\n";
+                    }
                 }
             }
             # else ignore the second line
         }
 
-        #   remember the last non-blank line. checked at the end
+        #   remember the last non-blank line. check it at the end to see if it is "=== END"
 
         $last_line = $_ if ($_);
 
-        #   check each line for a probable file name
+        #   check each line for a possible file name
 
-        if ( /^(I:\\\S+)\s/i ) {
-            $target = lc $1;
+        if ( /^I:\\/i ) {
+            $target = lc $_;
 
-            #   check if the cross reference is reasonable
+            #   The line starts I:\ and is probably a file name
+            #   TODO    check if the file ref is badly formed BUT does in fact match a target file
+            #   check if the cross reference is to a file with spaces in the name
 
             if ( $target =~ /\s/ ) {
                 $targets_with_space{$target}++;
-                print "$source_file_prefix$source\n" if ($source && $list_xrefs);
-                $source = "";
-                print "$space_xref_prefix$target *** cross reference includes a space\n" if ($list_xrefs);
+                if ($list_xrefs) {
+                    print "$source_file_prefix$source\n" if ($output_filename);
+                    $output_filename = 0;
+                    print "$space_xref_prefix$target *** cross reference includes a space\n";
+                }
+
                 next;
             }
 
+            #   check if cross reference is not to a text file
             unless ( $target =~ /.txt$/ ) {
                 $targets_not_txt{$target}++;
-                print "$source_file_prefix$source\n" if ($source && $list_xrefs);
-                $source = "";
+                print "$source_file_prefix$source\n" if ($output_filename && $list_xrefs);
+                $output_filename = 0;
                 print "$not_txt_xref_prefix$target *** cross reference not to a TXT file\n" if ($list_xrefs);
+
                 next;
             }
 
-            print "$source_file_prefix$source\n" if ($source && $list_xrefs);
-            $source = "";
-            print "$xref_prefix$target\n" if ($list_xrefs);
             $xref_count++;
             $targets{$target}++;
+
+            if ($list_xrefs) {
+                print "$source_file_prefix$source\n" if ($output_filename);
+                $output_filename = 0;
+                print "$xref_prefix$target\n";
+            }
         }
     }
 
-    if ($last_line eq "=== END") {
-        #   clean notefile
-#       print "$last_line\n";
+#   at EOF - do we have a well-formed notefile?
+#   print "$last_line\n";
 
+    if ($last_line eq "=== END") {
+        if ($title_matches) {
+            #   clean notefile
+            #   TODO    record notefile name
+        } else {
+            #   unclean notefile
+            #   TODO    record file name ...
+        }
     }
 }
 
 ####    Begin
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
-
-print "\nCross reference scan -- 21 December 2011 -- Ian Higgs\n";
 print "\nStarted $stamp\n";
 
 $source_count = 0;
@@ -247,6 +271,14 @@ if ($list_broken) {
 
     foreach $target (sort keys %targets ) {
         print "$target ~ $targets{$target}\n" unless ($all_files{$target});
+    }
+}
+
+if ($list_bad_underlines) {
+    print "\n=== File with incorrectly underlined title\n\n";
+
+    foreach $target (sort keys %file_with_bad_underlines) {
+        print "$target\n";
     }
 }
 
