@@ -39,7 +39,7 @@ $pass1_list_files_overwrite     = 0;
 $pass2_list_file_names          = 0;
 $pass2_list_files_overwrite     = 0;
 $pass2_list_bad_underlines      = 1;
-$pass2_list_xrefs               = 0;
+$pass2_list_xrefs               = 1;
 
 #   pass 3
 
@@ -358,22 +358,23 @@ if ($dirs_with_space_count && $pass3_list_dirs_with_space) {
     }
 }
 
-if ($pass3_list_all_targets) {
-    print "\n=== All target files\n\n";
-    my $known_count = 0;
-    my $unknown_count = 0;
+print "\n=== All target files\n\n" if ($pass3_list_all_targets);
+my $known_count = 0;
+my $unknown_count = 0;
 
-    foreach $target (sort keys %all_targets_hash ) {
-        if ($all_files_hash{$target}) {
-            $known_count++;
-            if ($all_targets_hash{$target} > 1)
-            {
+foreach $target (sort keys %all_targets_hash ) {
+    if ($all_files_hash{$target}) {
+        $known_count++;
+        if ($pass3_list_all_targets) {
+            if ($all_targets_hash{$target} > 1) {
                 print "$all_targets_hash{$target} valid xrefs to $target\n";
             } else {
                 print "One valid xref to $target\n";
             }
-        } else {
-            $unknown_count++;
+        }
+    } else {
+        $unknown_count++;
+        if ($pass3_list_all_targets) {
             if ($all_targets_hash{$target} > 1) {
                 print "$all_targets_hash{$target} broken xrefs for $target\n";
             } else {
@@ -381,8 +382,8 @@ if ($pass3_list_all_targets) {
             }
         }
     }
-    print "\n$known_count valid targets and $unknown_count missing targets\n";
 }
+print "\n$known_count valid targets and $unknown_count missing targets\n" if ($pass3_list_all_targets);
 
 if ($pass3_list_valid_targets) {
     print "\n=== Valid target files\n\n";
@@ -435,7 +436,7 @@ print "Found $source_count text files containing $valid_xref_count valid cross r
 print "Found $targets_with_space_count target lines include spaces\n";
 print "Found $targets_not_txt_count targets are not text files\n";
 print "Found $all_targets_count different referenced files\n";
-print "Found ??? references to missing files\n";
+print "Found $unknown_count references to missing files\n";
 print "Found $files_with_bad_underlines_count files with an incorrectly underlined title\n";
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
