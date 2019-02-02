@@ -43,6 +43,20 @@ use POSIX qw(strftime);
 use File::Find;
 use File::Spec;
 
+####    global hashes
+
+#   holds   all the files (and directories) found under the root directory
+#   key     full path and file
+#   value   1 (to force)
+
+my  %all_files;
+
+#   holds
+#   key
+#   value
+
+my  %targets_with_space;
+
 ####    call-back from Find - called for every directory and file in turn
 
 sub found_something {
@@ -72,9 +86,46 @@ sub found_something {
 
 sub scan_file {
 
+    my $title = "";
+    my $last_line = "";
+    my $line_number = 0;
+    my $title_matches = 0;
+
     open(FILE,"<$source");
 
     while( <FILE> ) {
+
+        $line_number++;
+#       print "$line_number -- $_\n";
+
+        #   if we are at the first line then remember it as the title
+
+        if ($line_number == 1) {
+            $title = $_;
+        }
+
+        #   if we are at the second line then see if it a line of = signs
+
+        if ($line_number == 2) {
+            if (/^=+$/) {
+                if (length($title)==length($_)) {
+                    #   title is correctly underlined
+#                   print "$title\n$_\n";
+                    $title_matches++;
+                } else {
+                    # title is underlined, but the underlines do not match
+                    print "$source_file_prefix$source\n" if ($source && $list_xrefs);
+                    $source = "";
+                    $source_with_bad_underlines{$source}++;
+                    print "$title\n$_  DOES NOT MATCH LENGTH\n";
+                }
+            }
+            # else ignore the second line
+        }
+
+        #   remember the last non-blank line. checked at the end
+
+        $last_line = $_ if ($_);
 
         #   check each line for a probable file name
 
@@ -106,13 +157,19 @@ sub scan_file {
             $targets{$target}++;
         }
     }
+
+    if ($last_line eq "=== END") {
+        #   clean notefile
+#       print "$last_line\n";
+
+    }
 }
 
 ####    Begin
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
 
-print "\nCross reference scan -- 06 November 2011\n";
+print "\nCross reference scan -- 21 December 2011 -- Ian Higgs\n";
 print "\nStarted $stamp\n";
 
 $source_count = 0;
@@ -153,8 +210,8 @@ if ($list_dirs_with_space) {
 
 if ($list_all_targets) {
     print "\n=== All target files\n\n";
-    $known_count = 0;
-    $unknown_count = 0;
+    my $known_count = 0;
+    my $unknown_count = 0;
 
     foreach $target (sort keys %targets ) {
         if ($all_files{$target}) {
