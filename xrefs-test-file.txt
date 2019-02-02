@@ -1,0 +1,29 @@
+Test file for XREFS Perl script
+=============================
+
+The title is incorrectly underlined
+
+=== see
+
+I:\xrefs\xrefs.txt
+
+=== TODO test A
+
+=== TODO test B
+
+[[[TODO]]] tag A
+
+[[[TODO]]] tag B
+
+[[[TODO]]] tag C
+
+I:\xrefs\missing-file.txt
+I:\xrefs\missing-directory\
+
+I:\xrefs\nowhere\file-in-missing-directory.txt
+
+I:\xrefs\missing-directory
+
+I:\xrefs\nowhere\file-in-missing-directory.txt
+
+=== END
