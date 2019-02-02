@@ -17,7 +17,7 @@
 ### PASS 3 -- examine use of filenames
 ### PASS 4 -- examine each file for references
 ### PASS 5 -- Report totals and misc lists
-### Wind up
+### Summary
 ### End
 #
 
@@ -63,9 +63,8 @@ $pass4_list_todo_sections       = 1;
 #   pass 5
 
 $pass5_output_target_counts     = 0;
-$pass5_list_all_targets         = 0;
 $pass5_list_valid_targets       = 0;
-$pass5_list_broken              = 1;
+$pass5_list_missing_targets     = 1;
 $pass5_list_bad_underlines      = 1;
 $pass5_list_targets_with_space  = 1;
 $pass5_list_targets_not_txt     = 1;
@@ -170,7 +169,6 @@ my  $valid_xref_count = 0;      # count of xrefs to targets (target itself may n
 #   key     full path and file name
 #   value   count of inbound xrefs
 #   printed in pass 4 if $pass4_list_xrefs
-#   printed in pass 5 if $pass5_list_all_targets
 
 my  $missing_targets_hash;
 my  $existing_target_files_count = 0;   # count of target files that do exist
@@ -277,13 +275,13 @@ sub found_something {
 
 ### SUB scan_file
 #
-#   scan a text file for xrefs
+#   scan a text file that we have already found
 #
-#   look for well formed titles
-#   look for lines which are file names
-#   look for lines which include TODO tags
+#   check the file starts with a well formed title
+#   look for lines which include various forms of TODO tags
+#   look for lines which are references to other files under the base directory
 #
-#   p1  external directory to look for
+#   p1  base directory
 #   p2  this file name
 #
 
@@ -467,7 +465,7 @@ sub start_section
 
 ### Begin
 
-print "\nCross reference scan -- 25 January 2015 -- Ian Higgs\n";
+print "\nCross reference scan -- 11 February 2016 -- Ian Higgs\n";
 
 $root_dir = shift;
 
@@ -553,38 +551,22 @@ foreach $source (sort keys %all_files_hash ) {
     }
 }
 
-$all_targets_count = keys %all_targets_hash;
+$all_targets_count = scalar keys %all_targets_hash;
 
 ### PASS 5 -- Report totals and misc lists
 
 start_section("PASS 5 -- Summary");
 
-start_section("All target files") if ($pass5_list_all_targets);
-
 foreach $target (sort keys %all_targets_hash ) {
     if (exists($all_files_hash{$target})) {
         $existing_target_files_count++;
-        if ($pass5_list_all_targets) {
-            if ($all_targets_hash{$target} > 1) {
-                print "$all_targets_hash{$target} valid xrefs to $target\n";
-            } else {
-                print "One valid xref to $target\n";
-            }
-        }
     } else {
         $missing_target_files_count++;
         $missing_targets_hash{$target}++;
         $missing_targets_count += $all_targets_hash{$target};
-        if ($pass5_list_all_targets) {
-            if ($all_targets_hash{$target} > 1) {
-                print "$all_targets_hash{$target} broken xrefs for $target\n";
-            } else {
-                print "One broken xrefs for $target\n";
-            }
-        }
     }
 }
-print "\n$existing_target_files_count existing targets and $missing_target_files_count missing targets\n" if ($pass5_list_all_targets);
+print "\n$existing_target_files_count existing targets and $missing_target_files_count missing targets\n";
 
 if ($pass5_list_valid_targets) {
     start_section("Valid target files");
@@ -616,7 +598,7 @@ if ($targets_with_space_count && $pass5_list_targets_with_space) {
 }
 
 if ($todo_section_count && $pass5_list_todo_sections) {
-    $files_with_todo_section_count = scalar(keys %files_with_todo_section_hash);
+    $files_with_todo_section_count = scalar keys %files_with_todo_section_hash;
     start_section("$todo_section_count TODO sections in $files_with_todo_section_count files");
 
     foreach $target (sort keys %files_with_todo_section_hash) {
@@ -625,7 +607,7 @@ if ($todo_section_count && $pass5_list_todo_sections) {
 }
 
 if ($todo_tag_count && $pass5_list_todo_tags) {
-    $files_with_todo_tag_count = scalar(keys %files_with_todo_tag_hash);
+    $files_with_todo_tag_count = scalar keys %files_with_todo_tag_hash;
     start_section("$todo_tag_count [[[TODO]]] tags in $files_with_todo_tag_count files");
 
     foreach $target (sort keys %files_with_todo_tag_hash) {
@@ -633,11 +615,14 @@ if ($todo_tag_count && $pass5_list_todo_tags) {
     }
 }
 
-if ($missing_target_files_count && $pass5_list_broken) {
+if ($missing_target_files_count && $pass5_list_missing_targets) {
     start_section("$missing_targets_count references to $missing_target_files_count missing files");
 
     foreach $target (sort keys %all_targets_hash ) {
-        print "$all_targets_hash{$target} ~ $target\n" unless (exists($all_files_hash{$target}));
+        unless (exists($all_files_hash{$target})) {
+            print "$all_targets_hash{$target} ~ " if ($pass5_output_target_counts);
+            print "$target\n";
+        }
     }
 }
 
@@ -649,7 +634,7 @@ if ($files_with_bad_underlines_count && $pass5_list_bad_underlines) {
     }
 }
 
-### Wind up
+### Summary
 
 start_section("Summary");
 
