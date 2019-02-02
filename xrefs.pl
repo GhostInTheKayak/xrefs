@@ -29,7 +29,7 @@ use File::Spec;
 #   pass 1
 
 $pass1_list_all_files           = 0;
-$pass1_list_dir_names           = 0;
+$pass1_list_dir_names           = 1;
 $pass1_list_dirs_overwrite      = 0;
 $pass1_list_file_names          = 0;
 $pass1_list_files_overwrite     = 0;
@@ -323,7 +323,8 @@ unless ( $starting_dir ) {
 ( -d $starting_dir ) or die "\nDirectory $starting_dir does not exist\n";
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
-print "\nStarted $stamp\n";
+print "\nScanning directory tree below $starting_dir\n";
+print "Started $stamp\n";
 
 $source_count = 0;
 
