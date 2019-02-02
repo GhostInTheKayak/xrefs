@@ -36,9 +36,9 @@ $debug_found_something_output   = 0;
 #   pass 1
 
 $pass1_list_all_files           = 0;
-$pass1_list_dir_names           = 1;
+$pass1_list_dir_names           = 0;
 $pass1_list_dirs_overwrite      = 0;
-$pass1_list_file_names          = 1;
+$pass1_list_file_names          = 0;
 $pass1_list_files_overwrite     = 0;
 
 #   pass 2
@@ -62,6 +62,7 @@ $pass4_list_todo_sections       = 1;
 
 #   pass 5
 
+$pass5_output_target_counts     = 0;
 $pass5_list_all_targets         = 0;
 $pass5_list_valid_targets       = 0;
 $pass5_list_broken              = 1;
@@ -141,7 +142,7 @@ my  $duplicate_filenames_count;
 #   holds   all of the duplicated filenames
 #           entries from all_filenames_hash where value>1
 #   key     filename
-#   value   n * (\t . directory name)
+#   value   n * ("\n    " . full path and filename)
 #   printed in pass 3 if $pass3_list_duplicate_filenames
 
 my  %duplicate_txt_filenames_hash;
@@ -150,7 +151,7 @@ my  $duplicate_txt_filenames_count;
 #   holds   all of the duplicated .txt filenames
 #           entries from all_filenames_hash where value>1
 #   key     filename
-#   value   n * (\t . directory name)
+#   value   n * ("\n    " . full path and filename)
 #   printed in pass 3 if $pass3_list_duplicate_txt_filenames
 
 my  %files_with_bad_underlines_hash;
@@ -259,7 +260,7 @@ sub found_something {
 
         #   space in filename?
         if ($just_filename =~ /\s/) {
-            $filenames_with_space_hash{$just_filename}++;
+            $filenames_with_space_hash{$path_and_filename}++;
             $filenames_with_space_count++;
         }
 
@@ -270,7 +271,7 @@ sub found_something {
                 $duplicate_txt_filenames_hash{$just_filename}++;
             }
         }
-        $all_filenames_hash{$just_filename} .= "\t" . $just_dirname;
+        $all_filenames_hash{$just_filename} .= "\n    " . $path_and_filename;
     }
 }
 
@@ -478,7 +479,6 @@ unless ( $root_dir ) {
 ( -d $root_dir ) or die "\nDirectory $root_dir does not exist\n";
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
-print "\nScanning directory tree below $root_dir\n";
 print "Started $stamp\n";
 
 ### PASS 1 -- build a hash of all of the directories and files in the tree
@@ -492,7 +492,7 @@ start_section("PASS 1 -- Scanning directory tree below $root_dir");
 start_section("PASS 2 -- Checking directory names");
 
 if ($dirnames_with_space_count && $pass2_list_dirs_with_space) {
-    start_section("$dirnames_with_space_count Directory names with spaces");
+    start_section("$dirnames_with_space_count Directory names with a space");
 
     foreach $dir (sort keys %dirnames_with_space_hash) {
         print "$dir\n";
@@ -503,13 +503,17 @@ if ($dirnames_with_space_count && $pass2_list_dirs_with_space) {
 
 start_section("PASS 3 -- Checking filenames");
 
+#   filename includes a space
+
 if ($filenames_with_space_count && $pass3_list_files_with_space) {
-    start_section("$filenames_with_space_count Filenames with spaces");
+    start_section("$filenames_with_space_count filenames with a space");
 
     foreach $filename (sort keys %filenames_with_space_hash) {
         print "$filename\n";
     }
 }
+
+#   all duplicate filenames
 
 $duplicate_filenames_count = scalar keys %duplicate_filenames_hash;
 if ($pass3_list_duplicate_filenames && $duplicate_filenames_count) {
@@ -523,13 +527,15 @@ if ($pass3_list_duplicate_filenames && $duplicate_filenames_count) {
     }
 }
 
+#   duplicate filenames only for .txt files
+
 $duplicate_txt_filenames_count = scalar keys %duplicate_txt_filenames_hash;
 if ($pass3_list_duplicate_txt_filenames && $duplicate_txt_filenames_count) {
     start_section("$duplicate_txt_filenames_count duplicate .txt filenames");
 
     foreach $filename (sort keys %duplicate_txt_filenames_hash) {
-        print "$filename -- ";
-        print $duplicate_txt_filenames_hash{$filename} +1;
+        print $filename;
+        # print " -- " . ($duplicate_txt_filenames_hash{$filename} +1);
         print $all_filenames_hash{$filename};
         print "\n";
     }
@@ -584,7 +590,10 @@ if ($pass5_list_valid_targets) {
     start_section("Valid target files");
 
     foreach $target (sort keys %all_targets_hash ) {
-        print "$all_targets_hash{$target} ~ $target\n" if (exists($all_files_hash{$target}));
+        if (exists($all_files_hash{$target})) {
+            print "$all_targets_hash{$target} ~ " if ($pass5_output_target_counts);
+            print "$target\n";
+        }
     }
 }
 
@@ -592,7 +601,8 @@ if ($targets_not_txt_count && $pass5_list_targets_not_txt) {
     start_section("Targets that are not text files");
 
     foreach $target (sort keys %targets_not_txt_hash) {
-        print "$targets_not_txt_hash{$target} ~ $target\n";
+        print "$targets_not_txt_hash{$target} ~ " if ($pass5_output_target_counts);
+        print "$target\n";
     }
 }
 
@@ -600,7 +610,8 @@ if ($targets_with_space_count && $pass5_list_targets_with_space) {
     start_section("Target lines include spaces");
 
     foreach $target (sort keys %targets_with_space_hash) {
-        print "$targets_with_space_hash{$target} ~ $target\n";
+        print "$targets_with_space_hash{$target} ~ " if ($pass5_output_target_counts);
+        print "$target\n";
     }
 }
 
@@ -626,7 +637,7 @@ if ($missing_target_files_count && $pass5_list_broken) {
     start_section("$missing_targets_count references to $missing_target_files_count missing files");
 
     foreach $target (sort keys %all_targets_hash ) {
-        print "$all_targets_hash{$target} ~ $target\n" unless ($all_files_hash{$target});
+        print "$all_targets_hash{$target} ~ $target\n" unless (exists($all_files_hash{$target}));
     }
 }
 
@@ -642,23 +653,23 @@ if ($files_with_bad_underlines_count && $pass5_list_bad_underlines) {
 
 start_section("Summary");
 
-print "PASS 1 -- Scanned directory tree below $root_dir\n";
-print "  $all_files_count files in $all_directories_count directories\n";
+print "PASS 1 -- Scanning directory tree below $root_dir\n";
+print "    $all_files_count files in $all_directories_count directories\n";
 print "PASS 2 -- Checking directory names\n";
-print "  $dirnames_with_space_count directory names with spaces\n";
+print "    $dirnames_with_space_count directory names with a space\n";
 print "PASS 3 -- Checking filenames\n";
-print "  $filenames_with_space_count filenames with spaces\n";
-print "  $duplicate_filenames_count duplicate filenames\n";
-print "  $duplicate_txt_filenames_count duplicate .txt filenames\n";
+print "    $filenames_with_space_count filenames with a space\n";
+print "    $duplicate_filenames_count duplicate filenames\n";
+print "    $duplicate_txt_filenames_count duplicate .txt filenames\n";
 print "PASS 4 -- Scanned $source_count text files\n";
-print "  $valid_xref_count valid references to $all_targets_count different target files\n";
+print "    $valid_xref_count valid references to $all_targets_count different target files\n";
 print "PASS 5 -- Summary\n";
-print "  $targets_not_txt_count targets that are not text files\n";
-print "  $targets_with_space_count target lines include spaces\n";
-print "  $todo_section_count TODO sections in $files_with_todo_section_count files\n";
-print "  $todo_tag_count [[[TODO]]] tags in $files_with_todo_tag_count files\n";
-print "  $missing_targets_count references to $missing_target_files_count missing files\n";
-print "  $files_with_bad_underlines_count files with an incorrectly underlined title\n";
+print "    $targets_not_txt_count targets that are not text files\n";
+print "    $targets_with_space_count target lines include spaces\n";
+print "    $todo_section_count TODO sections in $files_with_todo_section_count files\n";
+print "    $todo_tag_count [[[TODO]]] tags in $files_with_todo_tag_count files\n";
+print "    $missing_targets_count references to $missing_target_files_count missing files\n";
+print "    $files_with_bad_underlines_count files with an incorrectly underlined title\n";
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
 
