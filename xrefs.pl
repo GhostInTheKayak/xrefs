@@ -13,8 +13,9 @@
 #
 ### Begin
 ### PASS 1 -- build a hash of all of the directories and files in the tree
-### PASS 2 -- examine each file for references
-### PASS 3 -- Report totals and misc lists
+### PASS 2 -- examine use of file names
+### PASS 3 -- examine each file for references
+### PASS 4 -- Report totals and misc lists
 ### Wind up
 ### End
 #
@@ -32,29 +33,29 @@ use File::Spec;
 $pass1_list_all_files           = 0;
 $pass1_list_dir_names           = 1;
 $pass1_list_dirs_overwrite      = 0;
-$pass1_list_file_names          = 0;
+$pass1_list_file_names          = 1;
 $pass1_list_files_overwrite     = 0;
-
-#   pass 2
-
-$pass2_list_file_names          = 0;
-$pass2_list_files_overwrite     = 0;
-$pass2_list_bad_underlines      = 1;
-$pass2_list_xrefs               = 1;
-$pass2_list_todo_tags           = 1;
-$pass2_list_todo_sections       = 1;
 
 #   pass 3
 
-$pass3_list_dirs_with_space     = 1;
-$pass3_list_all_targets         = 0;
-$pass3_list_valid_targets       = 0;
-$pass3_list_broken              = 1;
+$pass3_list_file_names          = 0;
+$pass3_list_files_overwrite     = 0;
 $pass3_list_bad_underlines      = 1;
-$pass3_list_targets_with_space  = 1;
-$pass3_list_targets_not_txt     = 1;
+$pass3_list_xrefs               = 1;
 $pass3_list_todo_tags           = 1;
 $pass3_list_todo_sections       = 1;
+
+#   pass 4
+
+$pass4_list_dirs_with_space     = 1;
+$pass4_list_all_targets         = 0;
+$pass4_list_valid_targets       = 0;
+$pass4_list_broken              = 1;
+$pass4_list_bad_underlines      = 1;
+$pass4_list_targets_with_space  = 1;
+$pass4_list_targets_not_txt     = 1;
+$pass4_list_todo_tags           = 1;
+$pass4_list_todo_sections       = 1;
 
 ### constants
 
@@ -103,7 +104,7 @@ my  $dirs_with_space_count = 0;
 #   holds   all the directories including a space in the name
 #   key     full path and directory name
 #   value   1
-#   printed in pass 3 if $pass3_list_dirs_with_space
+#   printed in pass 4 if $pass4_list_dirs_with_space
 
 my  %files_with_bad_underlines_hash;
 my  $files_with_bad_underlines_count = 0;
@@ -111,7 +112,7 @@ my  $files_with_bad_underlines_count = 0;
 #   holds   all files where line 2 is = signs but does not match line 1
 #   key     full path and file name
 #   value   1
-#   printed in pass 3 if $pass3_list_bad_underlines
+#   printed in pass 4 if $pass4_list_bad_underlines
 
 my  %all_targets_hash;
 my  $all_targets_count = 0;     # count of distinct targets
@@ -120,8 +121,8 @@ my  $valid_xref_count = 0;      # count of xrefs to targets (target itself may n
 #   holds   target of cross references found in the text files
 #   key     full path and file name
 #   value   count of inbound xrefs
-#   printed in pass 2 if $pass2_list_xrefs
-#   printed in pass 3 if $pass3_list_all_targets
+#   printed in pass 3 if $pass3_list_xrefs
+#   printed in pass 4 if $pass4_list_all_targets
 
 my  %targets_not_txt_hash;
 my  $targets_not_txt_count = 0;
@@ -129,8 +130,8 @@ my  $targets_not_txt_count = 0;
 #   holds   all the referenced files that are not *.TXT
 #   key     full path and file name
 #   value   $targets_not_txt_hash{$target}++;
-#   printed in pass 2 if $pass2_list_xrefs
-#   printed in pass 3 if $pass3_list_targets_not_txt
+#   printed in pass 3 if $pass3_list_xrefs
+#   printed in pass 4 if $pass4_list_targets_not_txt
 
 my  %targets_with_space_hash;
 my  $targets_with_space_count = 0;
@@ -138,8 +139,8 @@ my  $targets_with_space_count = 0;
 #   holds   all the xref lines that include a space
 #   key     full path and file name
 #   value   $targets_with_space_hash{$target}++;
-#   printed in pass 2 if $pass2_list_xrefs
-#   printed in pass 3 if $pass3_list_targets_with_space
+#   printed in pass 3 if $pass3_list_xrefs
+#   printed in pass 4 if $pass4_list_targets_with_space
 
 my  %files_with_todo_tag_hash;
 my  $files_with_todo_tag_count = 0;
@@ -147,8 +148,8 @@ my  $files_with_todo_tag_count = 0;
 #   holds   all the files that include a TODO tag
 #   key     full path and file name
 #   value   $files_with_todo_tag{$target}++;
-#   printed in pass 2 if $pass2_list_todo_tags
 #   printed in pass 3 if $pass3_list_todo_tags
+#   printed in pass 4 if $pass4_list_todo_tags
 
 my  %files_with_todo_section_hash;
 my  $files_with_todo_section_count = 0;
@@ -157,37 +158,42 @@ my  $todo_section_count = 0;
 #   holds   all the files that include a TODO section
 #   key     full path and file name
 #   value   $files_with_todo_section_hash{$target}++;
-#   printed in pass 2 if $pass2_list_todo_sections
 #   printed in pass 3 if $pass3_list_todo_sections
+#   printed in pass 4 if $pass4_list_todo_sections
 
 ### SUB found_something
 #
 #   call-back from Find
 #   called for every directory and file in turn during pass 1
 #
+#   full path           $File::Find::name
+#   directory name      $File::Find::dir
+#   file name           $_
+#
 
 sub found_something {
 
-    $file_name = $File::Find::name;
-    $file_name = File::Spec->canonpath($file_name);
-    $file_name = lc $file_name;
-    print "$all_files_prefix$file_name\n" if ($pass1_list_all_files);
+    $path_and_filename = $File::Find::name;
+    $path_and_filename = File::Spec->canonpath($path_and_filename);
+    $path_and_filename = lc $path_and_filename;
+    print "$all_files_prefix$path_and_filename\n" if ($pass1_list_all_files);
+print "DIR=".$File::Find::dir." FILE=".$_."\n";
 
-    if (-d $file_name) {
-        print "$dir_found_prefix$file_name\n" if ($pass1_list_all_files || $pass1_list_dir_names);
-        print "$dir_found_prefix$file_name$blanks\r" if ($pass1_list_dirs_overwrite);
-        $all_files_hash{$file_name}++;
-        $all_directories_hash{$file_name}++;
+    if (-d $path_and_filename) {
+        print "$dir_found_prefix$path_and_filename\n" if ($pass1_list_all_files || $pass1_list_dir_names);
+        print "$dir_found_prefix$path_and_filename$blanks\r" if ($pass1_list_dirs_overwrite);
+        $all_files_hash{$path_and_filename}++;
+        $all_directories_hash{$path_and_filename}++;
         $all_directories_count++;
 
-        if ($file_name =~ /\s/) {
-            $dirs_with_space_hash{$file_name}++;
+        if ($path_and_filename =~ /\s/) {
+            $dirs_with_space_hash{$path_and_filename}++;
             $dirs_with_space_count++;
         }
     } else {
-        print "$file_found_prefix$file_name\n" if ($pass1_list_all_files || $pass1_list_file_names);
-        print "$file_found_prefix$file_name$blanks\r" if ($pass1_list_files_overwrite);
-        $all_files_hash{$file_name}++;
+        print "$file_found_prefix$path_and_filename\n" if ($pass1_list_all_files || $pass1_list_file_names);
+        print "$file_found_prefix$path_and_filename$blanks\r" if ($pass1_list_files_overwrite);
+        $all_files_hash{$path_and_filename}++;
         $all_files_count++;
     }
 }
@@ -215,8 +221,8 @@ sub scan_file {
     my $output_filename = 1;
     my $left_length = length($external_dir);
 
-    print "$file_scanned_prefix$this_file\n" if ($pass2_list_file_names);
-    print "$file_scanned_prefix$this_file$blanks\r" if ($pass2_list_files_overwrite);
+    print "$file_scanned_prefix$this_file\n" if ($pass3_list_file_names);
+    print "$file_scanned_prefix$this_file$blanks\r" if ($pass3_list_files_overwrite);
 
     open(FILE,"<$this_file");
 
@@ -245,7 +251,7 @@ sub scan_file {
                     $files_with_bad_underlines_hash{$this_file}++;
                     $files_with_bad_underlines_count++;
 
-                    if ($pass2_list_bad_underlines) {
+                    if ($pass3_list_bad_underlines) {
                         print "$source_file_prefix$this_file\n" if ($output_filename);
                         $output_filename = 0;
                         print "$bad_underlining_prefix\n";
@@ -276,7 +282,7 @@ sub scan_file {
             if ( $target =~ /\s/ ) {
                 $targets_with_space_hash{$target}++;
                 $targets_with_space_count++;
-                if ($pass2_list_xrefs) {
+                if ($pass3_list_xrefs) {
                     print "$source_file_prefix$source\n" if ($output_filename);
                     $output_filename = 0;
                     print "$space_xref_prefix$target\n";
@@ -291,7 +297,7 @@ sub scan_file {
             unless ( $target =~ /.txt$/ ) {
                 $targets_not_txt_hash{$target}++;
                 $targets_not_txt_count++;
-                if ($pass2_list_xrefs) {
+                if ($pass3_list_xrefs) {
                     print "$source_file_prefix$source\n" if ($output_filename);
                     $output_filename = 0;
                     print "$not_txt_xref_prefix$target\n";
@@ -303,7 +309,7 @@ sub scan_file {
             $all_targets_hash{$target}++;
             $valid_xref_count++;
 
-            if ($pass2_list_xrefs) {
+            if ($pass3_list_xrefs) {
                 print "$source_file_prefix$source\n" if ($output_filename);
                 $output_filename = 0;
                 print "$good_xref_prefix$target\n";
@@ -317,7 +323,7 @@ sub scan_file {
             $files_with_todo_tag_hash{$this_file}++;
             $files_with_todo_tag_count++;
 
-            if ($pass2_list_todo_tags) {
+            if ($pass3_list_todo_tags) {
                 print "$source_file_prefix$source\n" if ($output_filename);
                 $output_filename = 0;
                 print "$todo_tag_prefix$target\n";
@@ -331,7 +337,7 @@ sub scan_file {
             $files_with_todo_section_hash{$this_file}++;
             $files_with_todo_section_count++;
 
-            if ($pass2_list_todo_sections) {
+            if ($pass3_list_todo_sections) {
                 print "$source_file_prefix$source\n" if ($output_filename);
                 $output_filename = 0;
                 print "$todo_section_prefix$target\n";
@@ -384,7 +390,7 @@ sub start_section
 
 ### Begin
 
-print "\nCross reference scan -- 08 January 2014 -- Ian Higgs\n";
+print "\nCross reference scan -- 25 January 2015 -- Ian Higgs\n";
 
 $starting_dir = shift;
 
@@ -408,7 +414,7 @@ start_section("PASS 1 -- Scanning directory tree below $starting_dir")
 
 &find({ wanted => \&found_something }, $starting_dir);
 
-if ($dirs_with_space_count && $pass3_list_dirs_with_space) {
+if ($dirs_with_space_count && $pass4_list_dirs_with_space) {
     start_section("$dirs_with_space_count Directories with spaces");
 
     foreach $dir (sort keys %dirs_with_space_hash) {
@@ -416,9 +422,13 @@ if ($dirs_with_space_count && $pass3_list_dirs_with_space) {
     }
 }
 
-### PASS 2 -- examine each file for references
+### PASS 2 -- examine use of file names
 
-start_section("PASS 2 -- Scanning text files") if ($pass2_list_xrefs);
+start_section("PASS 2 -- Checking file names");
+
+### PASS 3 -- examine each file for references
+
+start_section("PASS 3 -- Scanning text files") if ($pass3_list_xrefs);
 
 foreach $source (sort keys %all_files_hash ) {
     if ( $source =~ /.*\.txt$/ ) {
@@ -429,16 +439,16 @@ foreach $source (sort keys %all_files_hash ) {
 
 $all_targets_count = keys %all_targets_hash;
 
-### PASS 3 -- Report totals and misc lists
+### PASS 4 -- Report totals and misc lists
 
-start_section("All target files") if ($pass3_list_all_targets);
+start_section("All target files") if ($pass4_list_all_targets);
 my $known_count = 0;
 my $unknown_count = 0;
 
 foreach $target (sort keys %all_targets_hash ) {
     if ($all_files_hash{$target}) {
         $known_count++;
-        if ($pass3_list_all_targets) {
+        if ($pass4_list_all_targets) {
             if ($all_targets_hash{$target} > 1) {
                 print "$all_targets_hash{$target} valid xrefs to $target\n";
             } else {
@@ -447,7 +457,7 @@ foreach $target (sort keys %all_targets_hash ) {
         }
     } else {
         $unknown_count++;
-        if ($pass3_list_all_targets) {
+        if ($pass4_list_all_targets) {
             if ($all_targets_hash{$target} > 1) {
                 print "$all_targets_hash{$target} broken xrefs for $target\n";
             } else {
@@ -456,9 +466,9 @@ foreach $target (sort keys %all_targets_hash ) {
         }
     }
 }
-print "\n$known_count valid targets and $unknown_count missing targets\n" if ($pass3_list_all_targets);
+print "\n$known_count valid targets and $unknown_count missing targets\n" if ($pass4_list_all_targets);
 
-if ($pass3_list_valid_targets) {
+if ($pass4_list_valid_targets) {
     start_section("Valid target files");
 
     foreach $target (sort keys %all_targets_hash ) {
@@ -466,7 +476,7 @@ if ($pass3_list_valid_targets) {
     }
 }
 
-if ($targets_not_txt_count && $pass3_list_targets_not_txt) {
+if ($targets_not_txt_count && $pass4_list_targets_not_txt) {
     start_section("Targets that are not text files");
 
     foreach $target (sort keys %targets_not_txt_hash) {
@@ -474,7 +484,7 @@ if ($targets_not_txt_count && $pass3_list_targets_not_txt) {
     }
 }
 
-if ($targets_with_space_count && $pass3_list_targets_with_space) {
+if ($targets_with_space_count && $pass4_list_targets_with_space) {
     start_section("Target lines include spaces");
 
     foreach $target (sort keys %targets_with_space_hash) {
@@ -482,7 +492,7 @@ if ($targets_with_space_count && $pass3_list_targets_with_space) {
     }
 }
 
-if ($files_with_todo_section_count && $pass3_list_todo_sections) {
+if ($files_with_todo_section_count && $pass4_list_todo_sections) {
     $todo_section_count = scalar(keys(%files_with_todo_section_hash));
     start_section("$todo_section_count files include $files_with_todo_section_count TODO sections");
 
@@ -491,7 +501,7 @@ if ($files_with_todo_section_count && $pass3_list_todo_sections) {
     }
 }
 
-if ($files_with_todo_tag_count && $pass3_list_todo_tags) {
+if ($files_with_todo_tag_count && $pass4_list_todo_tags) {
     start_section("$files_with_todo_tag_count files which include a TODO tag");
 
     foreach $target (sort keys %files_with_todo_tag_hash) {
@@ -499,7 +509,7 @@ if ($files_with_todo_tag_count && $pass3_list_todo_tags) {
     }
 }
 
-if ($unknown_count && $pass3_list_broken) {
+if ($unknown_count && $pass4_list_broken) {
     start_section("$unknown_count references to missing files");
 
     foreach $target (sort keys %all_targets_hash ) {
@@ -507,7 +517,7 @@ if ($unknown_count && $pass3_list_broken) {
     }
 }
 
-if ($files_with_bad_underlines_count && $pass3_list_bad_underlines) {
+if ($files_with_bad_underlines_count && $pass4_list_bad_underlines) {
     start_section("$files_with_bad_underlines_count Files with an incorrectly underlined title");
 
     foreach $target (sort keys %files_with_bad_underlines_hash) {
@@ -522,7 +532,8 @@ start_section("Summary");
 print "PASS 1 -- Scanned directory tree below $starting_dir\n";
 print "Found $all_files_count files in $all_directories_count directories\n";
 print "Found $dirs_with_space_count directories with spaces\n";
-print "PASS 2 -- Scanned $source_count text files\n";
+print "PASS 2 -- Checking file names\n";
+print "PASS 3 -- Scanned $source_count text files\n";
 print "Found $valid_xref_count valid references to $all_targets_count different target files\n";
 print "Found $targets_not_txt_count targets that are not text files\n";
 print "Found $targets_with_space_count target lines include spaces\n";
