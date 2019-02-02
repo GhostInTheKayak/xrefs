@@ -74,7 +74,6 @@ $pass5_list_todo_sections       = 1;
 ### constants
 
 $blanks                 = " " x 40;
-$dash_tag               = "-" x 3;
 $section_tag            = "=" x 3;
 $todo_section_tag       = "$section_tag todo";
 $todo_tag               = '\[\[\[todo\]\]\]';
