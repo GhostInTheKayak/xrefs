@@ -9,6 +9,7 @@
 #   SUB found_something
 #   SUB scan_file
 #   SUB output_help
+#   SUB
 #
 #   Begin
 #   PASS 1 -- build a hash of all of the directories and files in the tree
@@ -54,6 +55,9 @@ $pass3_list_targets_not_txt     = 1;
 ### constants
 
 $blanks                 = " " x 40;
+$dash_tag               = "-" x 3;
+$section_tag            = "=" x 3;
+$end_tag                = "=" x 3;
 
 $all_files_prefix       = "GOT  ";
 $dir_found_prefix       = "DIR  ";
@@ -65,9 +69,9 @@ $space_xref_prefix      = " > > ";
 $not_txt_xref_prefix    = " >?> ";
 $good_xref_prefix       = "  >> ";
 
-$space_xref_suffix      = " === cross reference includes a space";
-$not_txt_xref_suffix    = " === cross reference to a non-TXT file";
-$bad_underlining_suffix = " === bad title underlining";
+$space_xref_suffix      = " $dash_tag cross reference includes a space";
+$not_txt_xref_suffix    = " $dash_tag cross reference to a non-TXT file";
+$bad_underlining_suffix = " $dash_tag bad title underlining";
 
 ### global hashes
 
@@ -225,7 +229,7 @@ sub scan_file {
             # else ignore the second line
         }
 
-        #   remember the last non-blank line. check it at the end to see if it is "=== END"
+        #   remember the last non-blank line. check it at the end to see if this is a good Notefile
 
         $last_line = $_ if ($_);
 
@@ -281,10 +285,10 @@ sub scan_file {
         }
     }
 
-#   at EOF - do we have a well-formed notefile?
+#   at EOF - do we have a well-formed Notefile?
 #   print "$last_line\n";
 
-    if ($last_line eq "=== END") {
+    if ($last_line eq "$end_tag END") {
         if ($title_matches) {
             #   clean notefile
             #   TODO    record notefile name
@@ -309,6 +313,19 @@ Usage: $0 [starting directory]
 ENDhelptext
 }
 
+### SUB start_section
+#
+#   Just output a header for the section
+#
+#   p1  title
+#
+
+sub start_section
+{
+    my $title = shift;
+    print "\n$section_tag $title\n\n";
+}
+
 ### Begin
 
 print "\nCross reference scan -- 17 April 2013 -- Ian Higgs\n";
@@ -330,14 +347,22 @@ $source_count = 0;
 
 ### PASS 1 -- build a hash of all of the directories and files in the tree
 
-print "\n=== PASS 1 -- Scanning directory tree below $starting_dir\n\n"
+start_section("PASS 1 -- Scanning directory tree below $starting_dir")
     if ($pass1_list_all_files || $pass1_list_dir_names || $pass1_list_dirs_overwrite || $pass1_list_file_names || $pass1_list_files_overwrite);
 
 &find({ wanted => \&found_something }, $starting_dir);
 
+if ($dirs_with_space_count && $pass3_list_dirs_with_space) {
+    start_section("$dirs_with_space_count Directories with spaces");
+
+    foreach $dir (sort keys %dirs_with_space_hash) {
+        print "$dir\n";
+    }
+}
+
 ### PASS 2 -- examine each file for references
 
-print "\n=== PASS 2 -- Scanning files for cross references\n\n" if ($pass2_list_xrefs);
+start_section("PASS 2 -- Scanning text files") if ($pass2_list_xrefs);
 
 foreach $source (sort keys %all_files_hash ) {
     if ( $source =~ /.*\.txt$/ ) {
@@ -350,15 +375,7 @@ $all_targets_count = keys %all_targets_hash;
 
 ### PASS 3 -- Report totals and misc lists
 
-if ($dirs_with_space_count && $pass3_list_dirs_with_space) {
-    print "\n=== $dirs_with_space_count Directories with spaces\n\n";
-
-    foreach $dir (sort keys %dirs_with_space_hash) {
-        print "$dir\n";
-    }
-}
-
-print "\n=== All target files\n\n" if ($pass3_list_all_targets);
+start_section("All target files") if ($pass3_list_all_targets);
 my $known_count = 0;
 my $unknown_count = 0;
 
@@ -386,7 +403,7 @@ foreach $target (sort keys %all_targets_hash ) {
 print "\n$known_count valid targets and $unknown_count missing targets\n" if ($pass3_list_all_targets);
 
 if ($pass3_list_valid_targets) {
-    print "\n=== Valid target files\n\n";
+    start_section("Valid target files");
 
     foreach $target (sort keys %all_targets_hash ) {
         print "$all_targets_hash{$target} ~ $target\n" if ($all_files_hash{$target});
@@ -394,7 +411,7 @@ if ($pass3_list_valid_targets) {
 }
 
 if ($pass3_list_broken) {
-    print "\n=== Missing target files\n\n";
+    start_section("$unknown_count references to missing files");
 
     foreach $target (sort keys %all_targets_hash ) {
         print "$all_targets_hash{$target} ~ $target\n" unless ($all_files_hash{$target});
@@ -402,7 +419,7 @@ if ($pass3_list_broken) {
 }
 
 if ($files_with_bad_underlines_count && $pass3_list_bad_underlines) {
-    print "\n=== $files_with_bad_underlines_count Files with an incorrectly underlined title\n\n";
+    start_section("$files_with_bad_underlines_count Files with an incorrectly underlined title");
 
     foreach $target (sort keys %files_with_bad_underlines_hash) {
         print "$target\n";
@@ -410,7 +427,7 @@ if ($files_with_bad_underlines_count && $pass3_list_bad_underlines) {
 }
 
 if ($targets_with_space_count && $pass3_list_targets_with_space) {
-    print "\n=== Target lines with spaces\n\n";
+    start_section("Target lines include spaces");
 
     foreach $target (sort keys %targets_with_space_hash) {
         print "$targets_with_space_hash{$target} ~ $target\n";
@@ -418,7 +435,7 @@ if ($targets_with_space_count && $pass3_list_targets_with_space) {
 }
 
 if ($targets_not_txt_count && $pass3_list_targets_not_txt) {
-    print "\n=== Target files not .TXT\n\n";
+    start_section("Targets are not text files");
 
     foreach $target (sort keys %targets_not_txt_hash) {
         print "$targets_not_txt_hash{$target} ~ $target\n";
@@ -427,17 +444,17 @@ if ($targets_not_txt_count && $pass3_list_targets_not_txt) {
 
 ### Wind up
 
-print "\n=== Summary\n\n";
+start_section("Summary");
 
-print "Scanned directory tree below $starting_dir\n";
+print "PASS 1 -- Scanned directory tree below $starting_dir\n";
 print "Found $all_files_count files in $all_directories_count directories\n";
 print "Found $dirs_with_space_count directories with spaces\n";
-print "Found $source_count text files containing $valid_xref_count valid cross references\n";
-print "Found $targets_with_space_count target lines include spaces\n";
-print "Found $targets_not_txt_count targets are not text files\n";
-print "Found $all_targets_count different referenced files\n";
+print "PASS 2 -- Scanned $source_count text files\n";
+print "Found $valid_xref_count valid references to $all_targets_count different target files\n";
 print "Found $unknown_count references to missing files\n";
 print "Found $files_with_bad_underlines_count files with an incorrectly underlined title\n";
+print "Found $targets_with_space_count target lines include spaces\n";
+print "Found $targets_not_txt_count targets are not text files\n";
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
 
