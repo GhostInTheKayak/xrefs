@@ -3,9 +3,12 @@
 #
 #   01 September 2011   created
 #
-#   TODO    Add parameters to replace the hard-coded switches
 
-#   switches for first pass
+####    control constants
+
+$starting_dir = "I:\\";
+
+####    switches for first pass
 
 $list_all_files = 0;
 $list_dirs = 0;
@@ -13,8 +16,9 @@ $list_dirs_overwrite = 1;
 $list_files = 0;
 $list_files_overwrite = 0;
 
-#   switches for second pass
+####    switches for second pass
 
+$list_dirs_with_space = 1;
 $list_xrefs = 1;
 $list_all_targets = 1;
 $list_valid = 1;
@@ -22,9 +26,13 @@ $list_broken = 1;
 $list_targets_with_space = 1;
 $list_targets_not_txt = 1;
 
-$starting_dir = "I:\\";
+####    constants
 
 $blanks = " " x 40;
+
+$dir_prefix = "DIR  ";
+$file_prefix = "FILE ";
+$xref_prefix = "  >> ";
 
 ####    Libraries
 
@@ -34,57 +42,63 @@ use File::Spec;
 
 ####    call-back from Find - called for every directory and file in turn
 
-sub found_something
-{
+sub found_something {
+
     $file_count++;
     $file_name = $File::Find::name;
     $file_name = File::Spec->canonpath($file_name);
-    print "File: $file_name\n" if ($list_all_files);
+    $file_name = lc $file_name;
+    print "$file_prefix$file_name\n" if ($list_all_files);
 
-    if (-d $file_name)
-    {
-        print "Dir: $file_name\n" if ($list_dirs);
-        print "Dir: $file_name$blanks\r" if ($list_dirs_overwrite);
+    if (-d $file_name) {
+        print "$dir_prefix$file_name\n" if ($list_all_files || $list_dirs);
+        print "$dir_prefix$file_name$blanks\r" if ($list_dirs_overwrite);
         $all_files{$file_name}++;
         $directories{$file_name}++;
-    }
-    else
-    {
-        print "$file_name\n" if ($list_files);
-        print "$file_name$blanks\r" if ($list_files_overwrite);
+        if ($file_name =~ /\s/) {
+            $dirs_with_space{$file_name}++;
+        }
+    } else {
+        print "$file_prefix$file_name\n" if ($list_all_files || $list_files);
+        print "$file_prefix$file_name$blanks\r" if ($list_files_overwrite);
         $all_files{$file_name}++;
     }
 }
 
 ####    scan a text file
 
-sub scan_file
-{
+sub scan_file {
+
     open(FILE,"<$source");
 
-    while( <FILE> )
-    {
-        if ( /^(I:\\.+)$/ )     #   check each line for file name
-        {
-            $target = $1;
+    while( <FILE> ) {
 
-            #   check for a valid cross reference
+        #   check each line for a probable file name
 
-            if ( $target =~ /\s/ )
-            {
+        if ( /^(I:\\.+)$/i ) {
+            $target = lc $1;
+
+            #   check if the cross reference is reasonable
+
+            if ( $target =~ /\s/ ) {
                 $targets_with_space{$target}++;
-                print " ** cross reference includes a space: [$target]\n" if ($list_xrefs);
+                print "$file_prefix$source\n" if ($source && $list_xrefs);
+                $source = "";
+                print "$xref_prefix$target *** cross reference includes a space\n" if ($list_xrefs);
                 next;
             }
 
-            unless ( $target =~ /.txt$/ )
-            {
+            unless ( $target =~ /.txt$/ ) {
                 $targets_not_txt{$target}++;
-                print " ** cross reference not a TXT file: [$target]\n" if ($list_xrefs);
+                print "$file_prefix$source\n" if ($source && $list_xrefs);
+                $source = "";
+                print "$xref_prefix$target *** cross reference not to a TXT file\n" if ($list_xrefs);
                 next;
             }
 
-            print " -> $target\n" if ($list_xrefs);
+            print "$file_prefix$source\n" if ($source && $list_xrefs);
+            $source = "";
+            print "$xref_prefix$target\n" if ($list_xrefs);
             $xref_count++;
             $targets{$target}++;
         }
@@ -93,10 +107,9 @@ sub scan_file
 
 ####    Begin
 
-print "\nCross reference scan (14 September 2011)\n";
+$stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
 
-use POSIX qw(strftime);
-$stamp = strftime( "%a %d %b %Y  %H:%M:%S", localtime );
+print "\nCross reference scan (26 October 2011)\n";
 print "\nStarted $stamp\n\n";
 
 $source_count = 0;
@@ -104,83 +117,91 @@ $xref_count = 0;
 
 ####    build a hash of all of the directories and files in the tree
 
+print "\n=== Scanning directory tree ===\n\n"
+    if ($list_all_files || $list_dirs || $list_dirs_overwrite || $list_files || $list_files_overwrite);
+
 &find({ wanted => \&found_something }, $starting_dir);
 
-$file_count = keys %all_files;
+$directory_count = keys %directories;
+$file_count = (keys %all_files) - $directory_count;
 
-foreach $source (sort keys %all_files )
-{
-    if ( $source =~ /.*\.txt$/ )
-    {
+####    examine each file for references
+
+print "\n=== Scanning files for xrefs ===\n\n" if ($list_xrefs);
+
+foreach $source (sort keys %all_files ) {
+    if ( $source =~ /.*\.txt$/ ) {
         $source_count++;
         &scan_file( $source );
     }
 }
 
 $target_count = keys %targets;
-$directory_count = keys %directories;
-$file_count -= $directory_count;
 
 ####    Report
 
-if ($list_all_targets)
-{
-    print "\n=== All files ===\n\n";
+if ($list_dirs_with_space) {
+    print "\n=== Directories with spaces ===\n\n";
+
+    foreach $dir (sort keys %dirs_with_space) {
+        print "$dir\n";
+    }
+}
+
+if ($list_all_targets) {
+    print "\n=== All target files ===\n\n";
     $known_count = 0;
     $unknown_count = 0;
 
-    foreach $target (sort keys %targets )
-    {
-        if ($all_files{$target})
-        {
+    foreach $target (sort keys %targets ) {
+        if ($all_files{$target}) {
             $known_count++;
-            print "$targets{$target} valid xrefs to $target\n";
-        }
-        else
-        {
+            if ($targets{$target} > 1)
+            {
+                print "$targets{$target} valid xrefs to $target\n";
+            } else {
+                print "One valid xref to $target\n";
+            }
+        } else {
             $unknown_count++;
-            print "$targets{$target} broken xrefs for $target\n";
+            if ($targets{$target} > 1) {
+                print "$targets{$target} broken xrefs for $target\n";
+            } else {
+                print "One broken xrefs for $target\n";
+            }
         }
     }
-    print "\n$known_count known files and $unknown_count unknown files\n";
+    print "\n$known_count valid targets and $unknown_count broken xrefs\n";
 }
 
-if ($list_valid)
-{
+if ($list_valid) {
     print "\n=== Valid target files ===\n\n";
 
-    foreach $target (sort keys %targets )
-    {
+    foreach $target (sort keys %targets ) {
         print "$target ~ $targets{$target}\n" if ($all_files{$target});
     }
 }
 
-if ($list_broken)
-{
+if ($list_broken) {
     print "\n=== Missing target files ===\n\n";
 
-    foreach $target (sort keys %targets )
-    {
+    foreach $target (sort keys %targets ) {
         print "$target ~ $targets{$target}\n" unless ($all_files{$target});
     }
 }
 
-if ($list_targets_with_space)
-{
+if ($list_targets_with_space) {
     print "\n=== Target lines with spaces ===\n\n";
 
-    foreach $target (sort keys %targets_with_space)
-    {
+    foreach $target (sort keys %targets_with_space) {
         print "$target ~ $targets_with_space{$target}\n";
     }
 }
 
-if ($list_targets_not_txt)
-{
+if ($list_targets_not_txt) {
     print "\n=== Target lines not .TXT ===\n\n";
 
-    foreach $target (sort keys %targets_not_txt)
-    {
+    foreach $target (sort keys %targets_not_txt) {
         print "$target ~ $targets_not_txt{$target}\n";
     }
 }
@@ -193,7 +214,8 @@ print "Scanned $file_count files in $directory_count directories\n";
 print "Found $source_count files and $xref_count cross references\n";
 print "Found $target_count different target files\n";
 
-$stamp = strftime( "%H:%M:%S", localtime );
+$stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
+
 print "\nFinished $stamp\n\n";
 
 ####    End
