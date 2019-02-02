@@ -2,43 +2,48 @@
 #   Scan all text files for cross references to other text files
 #
 
-print "\nCross reference scan -- 26 January 2012 -- Ian Higgs\n";
+print "\nCross reference scan -- 06 April 2012 -- Ian Higgs\n";
 
 ####    control constants
 
-$starting_dir               = "I:\\";
+$starting_dir                   = "I:\\";
 
-####    switches for first pass
+####    PASS1 switches
 
-$list_all_files             = 0;
-$list_dirs                  = 0;
-$list_dirs_overwrite        = 0;
-$list_files                 = 0;
-$list_files_overwrite       = 0;
+$pass1_list_all_files           = 0;
+$pass1_list_dir_names           = 0;
+$pass1_list_dirs_overwrite      = 0;
+$pass1_list_file_names          = 1;
+$pass1_list_files_overwrite     = 0;
 
-####    switches for second pass
+####    PASS2 switches
 
-$list_dirs_with_space       = 1;
-$list_xrefs                 = 0;
-$list_all_targets           = 1;
-$list_valid                 = 0;
-$list_broken                = 1;
-$list_targets_with_space    = 1;
-$list_targets_not_txt       = 1;
-$list_bad_underlines        = 1;
+$pass2_list_bad_underlines      = 1;
+$pass2_list_xrefs               = 1;
+
+####    PASS3 switches
+
+$pass3_list_dirs_with_space     = 1;
+$pass3_list_all_targets         = 1;
+$pass3_list_valid_targets       = 0;
+$pass3_list_broken              = 1;
+$pass3_list_bad_underlines      = 1;
+$pass3_list_targets_with_spaces = 1;
+$pass3_list_targets_not_txt     = 1;
 
 ####    constants
 
-$blanks                     = " " x 40;
+$blanks                 = " " x 40;
 
-$all_files_prefix           = "GOT  ";
-$dir_found_prefix           = "DIR  ";
-$file_found_prefix          = "FILE ";
+$all_files_prefix       = "GOT  ";
+$dir_found_prefix       = "DIR  ";
+$file_found_prefix      = "FILE ";
 
-$source_file_prefix         = "";
-$space_xref_prefix          = "  >> ";
-$not_txt_xref_prefix        = "  >> ";
-$xref_prefix                = "  >> ";
+$source_file_prefix     = "";
+$space_xref_prefix      = "  >> ";
+$not_txt_xref_prefix    = "  >> ";
+$xref_prefix            = "  >> ";
+$bad_underlining_prefix = "  == Bad title underlining";
 
 ####    Libraries
 
@@ -60,7 +65,7 @@ my  %all_files;
 
 my  %targets_with_space;
 
-####    call-back from Find - called for every directory and file in turn
+####    PASS1   call-back from Find - called for every directory and file in turn
 
 sub found_something {
 
@@ -68,24 +73,24 @@ sub found_something {
     $file_name = $File::Find::name;
     $file_name = File::Spec->canonpath($file_name);
     $file_name = lc $file_name;
-    print "$all_files_prefix$file_name\n" if ($list_all_files);
+    print "$all_files_prefix$file_name\n" if ($pass1_list_all_files);
 
     if (-d $file_name) {
-        print "$dir_found_prefix$file_name\n" if ($list_all_files || $list_dirs);
-        print "$dir_found_prefix$file_name$blanks\r" if ($list_dirs_overwrite);
+        print "$dir_found_prefix$file_name\n" if ($pass1_list_all_files || $pass1_list_dir_names);
+        print "$dir_found_prefix$file_name$blanks\r" if ($pass1_list_dirs_overwrite);
         $all_files{$file_name}++;
         $directories{$file_name}++;
         if ($file_name =~ /\s/) {
             $dirs_with_space{$file_name}++;
         }
     } else {
-        print "$file_found_prefix$file_name\n" if ($list_all_files || $list_files);
-        print "$file_found_prefix$file_name$blanks\r" if ($list_files_overwrite);
+        print "$file_found_prefix$file_name\n" if ($pass1_list_all_files || $pass1_list_file_names);
+        print "$file_found_prefix$file_name$blanks\r" if ($pass1_list_files_overwrite);
         $all_files{$file_name}++;
     }
 }
 
-####    scan a text file
+####    PASS2   scan a text file
 
 sub scan_file {
 
@@ -122,10 +127,10 @@ sub scan_file {
                     # title is underlined, but the underlines do not match
                     $file_with_bad_underlines{$this_file}++;
 
-                    if ($list_bad_underlines) {
+                    if ($pass2_list_bad_underlines) {
                         print "$source_file_prefix$this_file\n" if ($output_filename);
                         $output_filename = 0;
-                        print "$title\n$_  incorrect title underline\n";
+                        print "$bad_underlining_prefix\n";
                     }
                 }
             }
@@ -147,29 +152,29 @@ sub scan_file {
 
             if ( $target =~ /\s/ ) {
                 $targets_with_space{$target}++;
-                if ($list_xrefs) {
+                if ($pass2_list_xrefs) {
                     print "$source_file_prefix$source\n" if ($output_filename);
                     $output_filename = 0;
                     print "$space_xref_prefix$target *** cross reference includes a space\n";
                 }
 
-                next;
+                next;   #   26 January 2012
             }
 
             #   check if cross reference is not to a text file
             unless ( $target =~ /.txt$/ ) {
                 $targets_not_txt{$target}++;
-                print "$source_file_prefix$source\n" if ($output_filename && $list_xrefs);
+                print "$source_file_prefix$source\n" if ($output_filename && $pass2_list_xrefs);
                 $output_filename = 0;
-                print "$not_txt_xref_prefix$target *** cross reference not to a TXT file\n" if ($list_xrefs);
+                print "$not_txt_xref_prefix$target *** cross reference to a non-TXT file\n" if ($pass2_list_xrefs);
 
-                next;
+                next;   #   26 January 2012
             }
 
             $xref_count++;
             $targets{$target}++;
 
-            if ($list_xrefs) {
+            if ($pass2_list_xrefs) {
                 print "$source_file_prefix$source\n" if ($output_filename);
                 $output_filename = 0;
                 print "$xref_prefix$target\n";
@@ -201,8 +206,8 @@ $xref_count = 0;
 
 ####    PASS 1 -- build a hash of all of the directories and files in the tree
 
-print "\n=== Scanning directory tree\n\n"
-    if ($list_all_files || $list_dirs || $list_dirs_overwrite || $list_files || $list_files_overwrite);
+print "\n=== PASS 1 -- Scanning directory tree\n\n"
+    if ($pass1_list_all_files || $pass1_list_dir_names || $pass1_list_dirs_overwrite || $pass1_list_file_names || $pass1_list_files_overwrite);
 
 &find({ wanted => \&found_something }, $starting_dir);
 
@@ -211,7 +216,7 @@ $file_count = (keys %all_files) - $directory_count;
 
 ####    PASS 2 -- examine each file for references
 
-print "\n=== Scanning files for xrefs\n\n" if ($list_xrefs);
+print "\n=== PASS 2 -- Scanning files for xrefs\n\n" if ($pass2_list_xrefs);
 
 foreach $source (sort keys %all_files ) {
     if ( $source =~ /.*\.txt$/ ) {
@@ -222,9 +227,9 @@ foreach $source (sort keys %all_files ) {
 
 $target_count = keys %targets;
 
-####    Report
+####    PASS 3 -- Report totals and misc lists
 
-if ($list_dirs_with_space) {
+if ($pass3_list_dirs_with_space) {
     print "\n=== Directories with spaces\n\n";
 
     foreach $dir (sort keys %dirs_with_space) {
@@ -232,7 +237,7 @@ if ($list_dirs_with_space) {
     }
 }
 
-if ($list_all_targets) {
+if ($pass3_list_all_targets) {
     print "\n=== All target files\n\n";
     my $known_count = 0;
     my $unknown_count = 0;
@@ -258,23 +263,23 @@ if ($list_all_targets) {
     print "\n$known_count valid targets and $unknown_count broken xrefs\n";
 }
 
-if ($list_valid) {
+if ($pass3_list_valid_targets) {
     print "\n=== Valid target files\n\n";
 
     foreach $target (sort keys %targets ) {
-        print "$target ~ $targets{$target}\n" if ($all_files{$target});
+        print "$targets{$target} ~ $target\n" if ($all_files{$target});
     }
 }
 
-if ($list_broken) {
+if ($pass3_list_broken) {
     print "\n=== Missing target files\n\n";
 
     foreach $target (sort keys %targets ) {
-        print "$target ~ $targets{$target}\n" unless ($all_files{$target});
+        print "$targets{$target} ~ $target\n" unless ($all_files{$target});
     }
 }
 
-if ($list_bad_underlines) {
+if ($pass3_list_bad_underlines) {
     print "\n=== File with incorrectly underlined title\n\n";
 
     foreach $target (sort keys %file_with_bad_underlines) {
@@ -282,19 +287,19 @@ if ($list_bad_underlines) {
     }
 }
 
-if ($list_targets_with_space) {
+if ($pass3_list_targets_with_spaces) {
     print "\n=== Target lines with spaces\n\n";
 
     foreach $target (sort keys %targets_with_space) {
-        print "$target ~ $targets_with_space{$target}\n";
+        print "$targets_with_space{$target} ~ $target\n";
     }
 }
 
-if ($list_targets_not_txt) {
+if ($pass3_list_targets_not_txt) {
     print "\n=== Target lines not .TXT\n\n";
 
     foreach $target (sort keys %targets_not_txt) {
-        print "$target ~ $targets_not_txt{$target}\n";
+        print "$targets_not_txt{$target} ~ $target\n";
     }
 }
 
