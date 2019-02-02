@@ -41,6 +41,8 @@ $pass2_list_file_names          = 0;
 $pass2_list_files_overwrite     = 0;
 $pass2_list_bad_underlines      = 1;
 $pass2_list_xrefs               = 1;
+$pass2_list_todo_tags           = 1;
+$pass2_list_todo_sections       = 1;
 
 #   pass 3
 
@@ -51,13 +53,17 @@ $pass3_list_broken              = 1;
 $pass3_list_bad_underlines      = 1;
 $pass3_list_targets_with_space  = 1;
 $pass3_list_targets_not_txt     = 1;
+$pass3_list_todo_tags           = 1;
+$pass3_list_todo_sections       = 1;
 
 ### constants
 
 $blanks                 = " " x 40;
 $dash_tag               = "-" x 3;
 $section_tag            = "=" x 3;
-$end_tag                = "=" x 3;
+$todo_section_tag       = "$section_tag todo";
+$todo_tag               = '\[\[\[todo\]\]\]';
+$end_tag                = "$section_tag END";
 
 $all_files_prefix       = "GOT  ";
 $dir_found_prefix       = "DIR  ";
@@ -65,13 +71,13 @@ $file_found_prefix      = "FILE ";
 $file_scanned_prefix    = "SCAN ";
 
 $source_file_prefix     = "";
-$space_xref_prefix      = " > > ";
-$not_txt_xref_prefix    = " >?> ";
-$good_xref_prefix       = "  >> ";
+$space_xref_prefix      = " ?SP ";
+$not_txt_xref_prefix    = " ?NT ";
+$good_xref_prefix       = "     ";
+$todo_tag_prefix        = " ?TT ";
+$todo_section_prefix    = " ?TS ";
 
-$space_xref_suffix      = " $dash_tag cross reference includes a space";
-$not_txt_xref_suffix    = " $dash_tag cross reference to a non-TXT file";
-$bad_underlining_suffix = " $dash_tag bad title underlining";
+$bad_underlining_prefix = " ?UL ";
 
 ### global hashes
 
@@ -135,6 +141,25 @@ my  $targets_with_space_count = 0;
 #   printed in pass 2 if $pass2_list_xrefs
 #   printed in pass 3 if $pass3_list_targets_with_space
 
+my  %files_with_todo_tag_hash;
+my  $files_with_todo_tag_count = 0;
+#
+#   holds   all the files that include a TODO tag
+#   key     full path and file name
+#   value   $files_with_todo_tag{$target}++;
+#   printed in pass 2 if $pass2_list_todo_tags
+#   printed in pass 3 if $pass3_list_todo_tags
+
+my  %files_with_todo_section_hash;
+my  $files_with_todo_section_count = 0;
+my  $todo_section_count = 0;
+#
+#   holds   all the files that include a TODO section
+#   key     full path and file name
+#   value   $files_with_todo_section_hash{$target}++;
+#   printed in pass 2 if $pass2_list_todo_sections
+#   printed in pass 3 if $pass3_list_todo_sections
+
 ### SUB found_something
 #
 #   call-back from Find
@@ -173,6 +198,7 @@ sub found_something {
 #
 #   look for well formed titles
 #   look for lines which are file names
+#   look for lines which include TODO tags
 #
 #   p1  external directory to look for
 #   p2  this file name
@@ -222,7 +248,7 @@ sub scan_file {
                     if ($pass2_list_bad_underlines) {
                         print "$source_file_prefix$this_file\n" if ($output_filename);
                         $output_filename = 0;
-                        print "$bad_underlining_suffix\n";
+                        print "$bad_underlining_prefix\n";
                     }
                 }
             }
@@ -253,7 +279,7 @@ sub scan_file {
                 if ($pass2_list_xrefs) {
                     print "$source_file_prefix$source\n" if ($output_filename);
                     $output_filename = 0;
-                    print "$space_xref_prefix$target$space_xref_suffix\n";
+                    print "$space_xref_prefix$target\n";
                 }
 
                 next;   #   26 January 2012
@@ -268,7 +294,7 @@ sub scan_file {
                 if ($pass2_list_xrefs) {
                     print "$source_file_prefix$source\n" if ($output_filename);
                     $output_filename = 0;
-                    print "$not_txt_xref_prefix$target$not_txt_xref_suffix\n";
+                    print "$not_txt_xref_prefix$target\n";
                 }
 
                 next;   #   26 January 2012
@@ -283,12 +309,42 @@ sub scan_file {
                 print "$good_xref_prefix$target\n";
             }
         }
+
+        #   check each line for a possible TODO tag
+
+        if ( $target =~ /$todo_tag/ ) {
+
+            $files_with_todo_tag_hash{$this_file}++;
+            $files_with_todo_tag_count++;
+
+            if ($pass2_list_todo_tags) {
+                print "$source_file_prefix$source\n" if ($output_filename);
+                $output_filename = 0;
+                print "$todo_tag_prefix$target\n";
+            }
+        }
+
+        #   check each line for a TODO section
+
+        if ( $target =~ /^$todo_section_tag/ ) {
+
+            $files_with_todo_section_hash{$this_file}++;
+            $files_with_todo_section_count++;
+
+            if ($pass2_list_todo_sections) {
+                print "$source_file_prefix$source\n" if ($output_filename);
+                $output_filename = 0;
+                print "$todo_section_prefix$target\n";
+            }
+        }
+
+
     }
 
 #   at EOF - do we have a well-formed Notefile?
 #   print "$last_line\n";
 
-    if ($last_line eq "$end_tag END") {
+    if ($last_line eq $end_tag) {
         if ($title_matches) {
             #   clean notefile
             #   TODO    record notefile name
@@ -328,7 +384,7 @@ sub start_section
 
 ### Begin
 
-print "\nCross reference scan -- 17 April 2013 -- Ian Higgs\n";
+print "\nCross reference scan -- 03 November 2013 -- Ian Higgs\n";
 
 $starting_dir = shift;
 
@@ -410,7 +466,40 @@ if ($pass3_list_valid_targets) {
     }
 }
 
-if ($pass3_list_broken) {
+if ($targets_not_txt_count && $pass3_list_targets_not_txt) {
+    start_section("Targets that are not text files");
+
+    foreach $target (sort keys %targets_not_txt_hash) {
+        print "$targets_not_txt_hash{$target} ~ $target\n";
+    }
+}
+
+if ($targets_with_space_count && $pass3_list_targets_with_space) {
+    start_section("Target lines include spaces");
+
+    foreach $target (sort keys %targets_with_space_hash) {
+        print "$targets_with_space_hash{$target} ~ $target\n";
+    }
+}
+
+if ($files_with_todo_section_count && $pass3_list_todo_sections) {
+    $todo_section_count = scalar(keys(%files_with_todo_section_hash));
+    start_section("$todo_section_count files include $files_with_todo_section_count TODO sections");
+
+    foreach $target (sort keys %files_with_todo_section_hash) {
+        print "$target\n";
+    }
+}
+
+if ($files_with_todo_tag_count && $pass3_list_todo_tags) {
+    start_section("$files_with_todo_tag_count files which include a TODO tag");
+
+    foreach $target (sort keys %files_with_todo_tag_hash) {
+        print "$target\n";
+    }
+}
+
+if ($unknown_count && $pass3_list_broken) {
     start_section("$unknown_count references to missing files");
 
     foreach $target (sort keys %all_targets_hash ) {
@@ -426,22 +515,6 @@ if ($files_with_bad_underlines_count && $pass3_list_bad_underlines) {
     }
 }
 
-if ($targets_with_space_count && $pass3_list_targets_with_space) {
-    start_section("Target lines include spaces");
-
-    foreach $target (sort keys %targets_with_space_hash) {
-        print "$targets_with_space_hash{$target} ~ $target\n";
-    }
-}
-
-if ($targets_not_txt_count && $pass3_list_targets_not_txt) {
-    start_section("Targets are not text files");
-
-    foreach $target (sort keys %targets_not_txt_hash) {
-        print "$targets_not_txt_hash{$target} ~ $target\n";
-    }
-}
-
 ### Wind up
 
 start_section("Summary");
@@ -451,10 +524,12 @@ print "Found $all_files_count files in $all_directories_count directories\n";
 print "Found $dirs_with_space_count directories with spaces\n";
 print "PASS 2 -- Scanned $source_count text files\n";
 print "Found $valid_xref_count valid references to $all_targets_count different target files\n";
+print "Found $targets_not_txt_count targets that are not text files\n";
+print "Found $targets_with_space_count target lines include spaces\n";
+print "Found $todo_section_count files include $files_with_todo_section_count TODO sections\n";
+print "Found $files_with_todo_tag_count files which include a TODO tag\n";
 print "Found $unknown_count references to missing files\n";
 print "Found $files_with_bad_underlines_count files with an incorrectly underlined title\n";
-print "Found $targets_with_space_count target lines include spaces\n";
-print "Found $targets_not_txt_count targets are not text files\n";
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
 
