@@ -67,7 +67,7 @@ $pass5_list_valid_targets       = 0;
 $pass5_list_missing_targets     = 1;
 $pass5_list_bad_underlines      = 1;
 $pass5_list_targets_with_space  = 1;
-$pass5_list_targets_not_txt     = 1;
+$pass5_list_targets_not_txt     = 0;
 $pass5_list_todo_tags           = 1;
 $pass5_list_todo_sections       = 1;
 
@@ -354,7 +354,7 @@ sub scan_file {
             #   The line starts with the $starting directory and so is probably a file name
             #   TODO    check if the file ref is badly formed BUT does in fact match a target file
 
-            #   check if the cross reference is to a file follwed by a space
+            #   check if the cross reference is to a file followed by a space
 
             if ( $target =~ /\s/ ) {
                 $targets_with_space_hash{$target}++;
@@ -467,7 +467,7 @@ sub start_section
 
 ### Begin
 
-print "\nCross reference scan -- 11 February 2016 -- Ian Higgs\n";
+print "\nCross reference scanner -- 02 December 2018 -- Ian Higgs\n";
 
 $root_dir = shift;
 
@@ -479,7 +479,7 @@ unless ( $root_dir ) {
 ( -d $root_dir ) or die "\nDirectory $root_dir does not exist\n";
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
-print "Started $stamp\n";
+print "\nStarted $stamp\n";
 
 ### PASS 1 -- build a hash of all of the directories and files in the tree
 
@@ -572,7 +572,7 @@ foreach $target (sort keys %all_targets_hash ) {
         $missing_targets_count += $all_targets_hash{$target};
     }
 }
-print "\n$existing_target_files_count existing targets and $missing_target_files_count missing targets\n";
+print "$existing_target_files_count existing targets and $missing_target_files_count missing targets\n";
 
 if ($pass5_list_valid_targets) {
     start_section("Valid target files");
