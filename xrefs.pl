@@ -529,6 +529,14 @@ sub report_filename
     print $prefix_source_file, $filename, $crlf;
 }
 
+### SUB filename_and_line
+#
+#   Report the filename and line number as a viable link
+#
+#   p1  filename
+#   p2  line number
+#
+
 sub filename_and_line
 {
     my $filename = shift;
