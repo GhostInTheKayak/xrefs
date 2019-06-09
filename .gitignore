@@ -1,4 +1,6 @@
 *.bak
+*.bat
 *.log
 xrefs.txt
+xrefs-todo.txt
 xrefs-history.txt

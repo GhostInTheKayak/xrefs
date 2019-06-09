@@ -1,6 +1,8 @@
 #
 #   Scan all text files for cross references to other text files
 #
+#   Assumes that a text file will have a .txt suffix    (I am not an animal)
+#
 ### Libraries
 ### switches
 ### constants
@@ -10,6 +12,9 @@
 ### SUB scan_file
 ### SUB output_help
 ### SUB start_section
+### SUB report_line
+### SUB report_filename
+### SUB filename_and_line
 #
 ### Begin
 ### PASS 1 -- build a hash of all of the directories and files in the tree
