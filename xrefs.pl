@@ -68,12 +68,12 @@ $pass4_list_todo_sections       = 1;
 
 #   pass 5
 
-$pass5_output_target_counts     = 0;
+$pass5_output_target_counts     = 1;
 $pass5_list_valid_targets       = 0;
 $pass5_list_missing_targets     = 1;
 $pass5_list_bad_underlines      = 1;
 $pass5_list_targets_with_space  = 1;
-$pass5_list_targets_not_txt     = 0;
+$pass5_list_targets_not_txt     = 1;
 $pass5_list_todo_tags           = 1;
 $pass5_list_todo_sections       = 1;
 
@@ -197,8 +197,8 @@ my  $valid_xref_count = 0;      # count of xrefs to targets (target itself may n
 #   printed in pass 4 if $pass4_list_xrefs
 
 my  $missing_targets_hash;
-my  $existing_target_files_count = 0;   # count of target files that do exist
-my  $missing_target_files_count = 0;    # count of target files that are missing
+my  $existing_targets_file_count = 0;   # count of target files that do exist
+my  $missing_targets_file_count = 0;    # count of target files that are missing
 my  $missing_targets_count = 0;         # count of xrefs to target files that are missing
 #
 #   holds   cross reference targets not found
@@ -313,12 +313,12 @@ sub found_something {
 
 sub scan_file {
 
+    my ($external_dir, $this_file) = @_;
+
     my $title = "";
     my $last_line = "";
     my $line_number = 0;
     my $title_matches = 0;
-    my $external_dir = shift;
-    my $this_file = shift;
     my $output_filename = 1;
     my $left_length = length($external_dir);
 
@@ -489,7 +489,7 @@ ENDhelptext
 
 sub start_section
 {
-    my $title = shift;
+    my ($title) = @_;
     print $crlf, $tag_section, ' ', $title, $crlf, $crlf;
 }
 
@@ -505,10 +505,7 @@ sub start_section
 
 sub report_line
 {
-    my $prefix = shift;
-    my $filename = shift;
-    my $suffix = shift;
-    my $rest = shift;
+    my ($prefix, $filename, $suffix, $rest) = @_;
     print $prefix, $filename, $suffix, $rest, $crlf;
 }
 
@@ -521,7 +518,7 @@ sub report_line
 
 sub report_filename
 {
-    my $filename = shift;
+    my ($filename) = @_;
     print $prefix_source_file, $filename, $crlf;
 }
 
@@ -535,14 +532,13 @@ sub report_filename
 
 sub filename_and_line
 {
-    my $filename = shift;
-    my $linenumber = shift;
+    my ($filename, $linenumber) = @_;
     return $filename . '(' . $linenumber . ')';
 }
 
 ### Begin
 
-print "\nCross reference scanner -- 02 December 2018 -- Ian Higgs\n";
+print "\nCross reference scanner -- 09 June 2019 -- Ian Higgs\n";
 
 $root_dir = shift;
 
@@ -640,14 +636,14 @@ start_section("PASS 5 -- Summary");
 
 foreach $target (sort keys %all_targets_hash ) {
     if (exists($all_files_hash{$target})) {
-        $existing_target_files_count++;
+        $existing_targets_file_count++;
     } else {
-        $missing_target_files_count++;
+        $missing_targets_file_count++;
         $missing_targets_hash{$target}++;
         $missing_targets_count += $all_targets_hash{$target};
     }
 }
-print "$existing_target_files_count existing targets and $missing_target_files_count missing targets\n";
+print "$existing_targets_file_count existing targets and $missing_targets_file_count missing targets\n";
 
 if ($pass5_list_valid_targets) {
     start_section("Valid target files");
@@ -661,7 +657,7 @@ if ($pass5_list_valid_targets) {
 }
 
 if ($targets_not_txt_count && $pass5_list_targets_not_txt) {
-    start_section("Targets that are not text files");
+    start_section("$targets_not_txt_count targets that are not text files");
 
     foreach $target (sort keys %targets_not_txt_hash) {
         print "$targets_not_txt_hash{$target} ~ " if ($pass5_output_target_counts);
@@ -696,8 +692,8 @@ if ($tag_todo_count && $pass5_list_todo_tags) {
     }
 }
 
-if ($missing_target_files_count && $pass5_list_missing_targets) {
-    start_section("$missing_targets_count references to $missing_target_files_count missing files");
+if ($missing_targets_file_count && $pass5_list_missing_targets) {
+    start_section("$missing_targets_count references to $missing_targets_file_count missing files");
 
     foreach $target (sort keys %all_targets_hash ) {
         unless (exists($all_files_hash{$target})) {
@@ -705,6 +701,14 @@ if ($missing_target_files_count && $pass5_list_missing_targets) {
             print "$target\n";
         }
     }
+
+    start_section("TEST $missing_targets_count references to $missing_targets_file_count missing files");
+    foreach $target (sort keys %missing_targets_hash) {
+        print "$all_targets_hash{$target} ~ " if ($pass5_output_target_counts);
+        print "$target\n";
+    }
+
+
 }
 
 if ($files_with_bad_underlines_count && $pass5_list_bad_underlines) {
@@ -734,7 +738,7 @@ print "    $targets_not_txt_count targets that are not text files\n";
 print "    $targets_with_space_count target lines include spaces\n";
 print "    $todo_section_count TODO sections in $files_with_todo_section_count files\n";
 print "    $tag_todo_count [[[TODO]]] tags in $files_with_todo_tag_count files\n";
-print "    $missing_targets_count references to $missing_target_files_count missing files\n";
+print "    $missing_targets_count references to $missing_targets_file_count missing files\n";
 print "    $files_with_bad_underlines_count files with an incorrectly underlined title\n";
 
 $stamp = strftime( "%a %d %b %Y @ %H:%M:%S", localtime );
